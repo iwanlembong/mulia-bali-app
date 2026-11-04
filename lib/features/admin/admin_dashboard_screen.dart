@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../main.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shimmer_card.dart';
 import 'admin_payment_verification_screen.dart';
@@ -13,7 +14,7 @@ class AdminDashboardScreen extends StatefulWidget {
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteAware {
   String _userName = 'Admin';
 
   // ✅ VARIABEL STATS DINAMIS
@@ -40,6 +41,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _fetchStats();
     _fetchPendingVerifications(); // ✅ Panggil fungsi fetch antrean verifikasi
     _fetchDashboardStats(); // ✅ Panggil saat dashboard dibuka
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ✅ Subscribe ke observer agar tahu saat layar ini muncul kembali
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void dispose() {
+    // ✅ Unsubscribe untuk mencegah memory leak
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // ✅ METHOD AJAIB: Dipanggil otomatis setiap kali Anda kembali ke Dashboard dari layar lain
+  @override
+  void didPopNext() {
+    print('🔄 [ADMIN DASHBOARD] Kembali ke dashboard, me-refresh semua stats...');
+    _fetchDashboardStats();
+    _fetchStats();
+    _fetchPendingVerifications();
   }
 
   // ✅ 2. Tambahkan method ini untuk mengambil statistik secara efisien

@@ -54,8 +54,13 @@ class _AdminReservationDetailScreenState
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGold),
-            child: const Text('Yes, Update', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGold,
+            ),
+            child: const Text(
+              'Yes, Update',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -104,14 +109,19 @@ class _AdminReservationDetailScreenState
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-            child: const Text('Yes, Complete', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Yes, Complete',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
 
     if (confirm == true) {
-      final success = await ReservationService.completeReservation(reservationId);
+      final success = await ReservationService.completeReservation(
+        reservationId,
+      );
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -120,6 +130,10 @@ class _AdminReservationDetailScreenState
               backgroundColor: Colors.green,
             ),
           );
+
+          // ✅ KIRIM SINYAL KE LAYAR SEBELUMNYA (LIST)
+          Navigator.pop(context, true);
+
           _fetchDetail();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -134,20 +148,27 @@ class _AdminReservationDetailScreenState
   }
 
   String _formatPrice(int price) => price.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]},',
-      );
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]},',
+  );
 
   // ✅ BARU: Helper untuk warna status
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'pending': return Colors.orange.shade700;
-      case 'confirmed': return Colors.green.shade700;
-      case 'checked_in': return Colors.blue.shade700;
-      case 'checked_out': return Colors.grey.shade700;
-      case 'cancelled': return Colors.red.shade700;
-      case 'completed': return Colors.teal.shade700;
-      default: return Colors.grey;
+      case 'pending':
+        return Colors.orange.shade700;
+      case 'confirmed':
+        return Colors.green.shade700;
+      case 'checked_in':
+        return Colors.blue.shade700;
+      case 'checked_out':
+        return Colors.grey.shade700;
+      case 'cancelled':
+        return Colors.red.shade700;
+      case 'completed':
+        return Colors.teal.shade700;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -156,13 +177,23 @@ class _AdminReservationDetailScreenState
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: AppColors.offWhite,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryGold)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGold),
+        ),
       );
     }
     if (_reservation == null) {
       return Scaffold(
-        appBar: AppBar(backgroundColor: AppColors.darkCharcoal, foregroundColor: Colors.white),
-        body: const Center(child: Text('Reservation not found', style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey))),
+        appBar: AppBar(
+          backgroundColor: AppColors.darkCharcoal,
+          foregroundColor: Colors.white,
+        ),
+        body: const Center(
+          child: Text(
+            'Reservation not found',
+            style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+          ),
+        ),
       );
     }
 
@@ -172,7 +203,8 @@ class _AdminReservationDetailScreenState
     // ✅ 1. Hitung Variabel Diskon untuk Audit
     final int discountAmount = res.discountAmount ?? 0;
     final int voucherDiscountAmount = res.voucherDiscountAmount ?? 0;
-    final int originalSubtotal = res.totalAmount + discountAmount + voucherDiscountAmount;
+    final int originalSubtotal =
+        res.totalAmount + discountAmount + voucherDiscountAmount;
     final bool hasDiscount = discountAmount > 0 || voucherDiscountAmount > 0;
     final Color statusColor = _getStatusColor(res.status);
 
@@ -183,7 +215,10 @@ class _AdminReservationDetailScreenState
         foregroundColor: Colors.white,
         title: const Text(
           'Reservation Details',
-          style: TextStyle(fontFamily: 'Playfair Display', fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontFamily: 'Playfair Display',
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -194,7 +229,10 @@ class _AdminReservationDetailScreenState
             // Status Badge (Dinamis)
             Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -218,16 +256,37 @@ class _AdminReservationDetailScreenState
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Guest Information', style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                  const Text(
+                    'Guest Information',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
                   const SizedBox(height: 12),
-                  _buildInfoRow(Icons.person, 'Name', res.guestName ?? 'Unknown Guest'),
+                  _buildInfoRow(
+                    Icons.person,
+                    'Name',
+                    res.guestName ?? 'Unknown Guest',
+                  ),
                   const SizedBox(height: 12),
-                  _buildInfoRow(Icons.email_outlined, 'Email Address', res.guestEmail ?? 'No Email'),
+                  _buildInfoRow(
+                    Icons.email_outlined,
+                    'Email Address',
+                    res.guestEmail ?? 'No Email',
+                  ),
                 ],
               ),
             ),
@@ -239,24 +298,61 @@ class _AdminReservationDetailScreenState
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(res.roomName ?? 'Room', style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                  Text(
+                    res.roomName ?? 'Room',
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  _buildDetailRow(Icons.confirmation_num, 'Res. Number', res.reservationNumber),
+                  _buildDetailRow(
+                    Icons.confirmation_num,
+                    'Res. Number',
+                    res.reservationNumber,
+                  ),
                   const SizedBox(height: 12),
-                  _buildDetailRow(Icons.calendar_today, 'Check-in', DateFormat('dd MMMM yyyy').format(res.checkIn)),
+                  _buildDetailRow(
+                    Icons.calendar_today,
+                    'Check-in',
+                    DateFormat('dd MMMM yyyy').format(res.checkIn),
+                  ),
                   const SizedBox(height: 12),
-                  _buildDetailRow(Icons.calendar_today_outlined, 'Check-out', DateFormat('dd MMMM yyyy').format(res.checkOut)),
+                  _buildDetailRow(
+                    Icons.calendar_today_outlined,
+                    'Check-out',
+                    DateFormat('dd MMMM yyyy').format(res.checkOut),
+                  ),
                   const SizedBox(height: 12),
-                  _buildDetailRow(Icons.nights_stay, 'Duration', '$nights Night(s)'),
+                  _buildDetailRow(
+                    Icons.nights_stay,
+                    'Duration',
+                    '$nights Night(s)',
+                  ),
                   const SizedBox(height: 12),
-                  _buildDetailRow(Icons.people, 'Guests', '${res.adults} Adults, ${res.children} Children'),
+                  _buildDetailRow(
+                    Icons.people,
+                    'Guests',
+                    '${res.adults} Adults, ${res.children} Children',
+                  ),
                   const SizedBox(height: 12),
-                  _buildDetailRow(Icons.meeting_room, 'Rooms', '${res.roomCount} Room(s)'),
+                  _buildDetailRow(
+                    Icons.meeting_room,
+                    'Rooms',
+                    '${res.roomCount} Room(s)',
+                  ),
                 ],
               ),
             ),
@@ -268,14 +364,25 @@ class _AdminReservationDetailScreenState
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Pricing & Audit Details',
-                    style: TextStyle(fontFamily: 'Playfair Display', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                    style: TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkCharcoal,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -286,7 +393,11 @@ class _AdminReservationDetailScreenState
                       Expanded(
                         child: Text(
                           'IDR ${_formatPrice(res.pricePerNight)} x $nights nights x ${res.roomCount} room(s)',
-                          style: const TextStyle(fontFamily: 'Lato', fontSize: 13, color: AppColors.textGrey),
+                          style: const TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 13,
+                            color: AppColors.textGrey,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -296,7 +407,9 @@ class _AdminReservationDetailScreenState
                           fontFamily: 'Lato',
                           fontSize: 14,
                           color: AppColors.darkCharcoal,
-                          decoration: hasDiscount ? TextDecoration.lineThrough : TextDecoration.none,
+                          decoration: hasDiscount
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
                         ),
                       ),
                     ],
@@ -310,11 +423,21 @@ class _AdminReservationDetailScreenState
                       children: [
                         Text(
                           'Promo Code: ${res.promoCode ?? '-'}',
-                          style: const TextStyle(fontFamily: 'Lato', fontSize: 13, color: Colors.green, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 13,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Text(
                           '- IDR ${_formatPrice(discountAmount)}',
-                          style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                          style: const TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
                         ),
                       ],
                     ),
@@ -328,11 +451,21 @@ class _AdminReservationDetailScreenState
                       children: [
                         const Text(
                           'Voucher Loyalty Discount',
-                          style: TextStyle(fontFamily: 'Lato', fontSize: 13, color: Colors.purple, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 13,
+                            color: Colors.purple,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Text(
                           '- IDR ${_formatPrice(voucherDiscountAmount)}',
-                          style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.purple),
+                          style: const TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple,
+                          ),
                         ),
                       ],
                     ),
@@ -341,7 +474,12 @@ class _AdminReservationDetailScreenState
                       const SizedBox(height: 4),
                       Text(
                         'Voucher DB ID: ${res.voucherId}',
-                        style: const TextStyle(fontFamily: 'Lato', fontSize: 10, color: AppColors.textGrey, fontStyle: FontStyle.italic),
+                        style: const TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 10,
+                          color: AppColors.textGrey,
+                          fontStyle: FontStyle.italic,
+                        ),
                         textAlign: TextAlign.end,
                       ),
                     ],
@@ -357,11 +495,21 @@ class _AdminReservationDetailScreenState
                     children: [
                       const Text(
                         'FINAL TOTAL AMOUNT',
-                        style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkCharcoal,
+                        ),
                       ),
                       Text(
                         'IDR ${_formatPrice(res.totalAmount)}',
-                        style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGold),
+                        style: const TextStyle(
+                          fontFamily: 'Playfair Display',
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryGold,
+                        ),
                       ),
                     ],
                   ),
@@ -369,23 +517,41 @@ class _AdminReservationDetailScreenState
               ),
             ),
 
-            if (res.specialRequests != null && res.specialRequests!.isNotEmpty) ...[
+            if (res.specialRequests != null &&
+                res.specialRequests!.isNotEmpty) ...[
               const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Special Requests', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Lato', fontSize: 14, color: AppColors.darkCharcoal)),
+                    const Text(
+                      'Special Requests',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                        fontSize: 14,
+                        color: AppColors.darkCharcoal,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       res.specialRequests!,
-                      style: const TextStyle(fontFamily: 'Lato', color: AppColors.textGrey, fontStyle: FontStyle.italic),
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        color: AppColors.textGrey,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ],
                 ),
@@ -412,9 +578,24 @@ class _AdminReservationDetailScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontFamily: 'Lato', fontSize: 12, color: AppColors.textGrey)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'Lato',
+                  fontSize: 12,
+                  color: AppColors.textGrey,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(value, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.darkCharcoal)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontFamily: 'Lato',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.darkCharcoal,
+                ),
+              ),
             ],
           ),
         ),
@@ -429,9 +610,24 @@ class _AdminReservationDetailScreenState
         Icon(icon, size: 18, color: AppColors.primaryGold),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(label, style: const TextStyle(fontFamily: 'Lato', fontSize: 12, color: AppColors.textGrey)),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'Lato',
+              fontSize: 12,
+              color: AppColors.textGrey,
+            ),
+          ),
         ),
-        Text(value, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.darkCharcoal)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontFamily: 'Lato',
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.darkCharcoal,
+          ),
+        ),
       ],
     );
   }
@@ -440,17 +636,48 @@ class _AdminReservationDetailScreenState
     List<Widget> buttons = [];
 
     if (res.status == 'pending') {
-      buttons.add(_buildButton('CONFIRM RESERVATION', Colors.green, () => _updateStatus('confirmed')));
-      buttons.add(_buildButton('CANCEL RESERVATION', Colors.red, () => _updateStatus('cancelled')));
+      buttons.add(
+        _buildButton(
+          'CONFIRM RESERVATION',
+          Colors.green,
+          () => _updateStatus('confirmed'),
+        ),
+      );
+      buttons.add(
+        _buildButton(
+          'CANCEL RESERVATION',
+          Colors.red,
+          () => _updateStatus('cancelled'),
+        ),
+      );
     } else if (res.status == 'confirmed') {
-      buttons.add(_buildButton('CHECK IN GUEST', Colors.blue, () => _updateStatus('checked_in')));
+      buttons.add(
+        _buildButton(
+          'CHECK IN GUEST',
+          Colors.blue,
+          () => _updateStatus('checked_in'),
+        ),
+      );
     } else if (res.status == 'checked_in') {
-      buttons.add(_buildButton('CHECK OUT & COMPLETE', Colors.teal, () => _completeReservation(res.id)));
+      buttons.add(
+        _buildButton(
+          'CHECK OUT & COMPLETE',
+          Colors.teal,
+          () => _completeReservation(res.id),
+        ),
+      );
     } else if (res.status == 'completed' || res.status == 'cancelled') {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: Text('This reservation is already finalized.', style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey, fontStyle: FontStyle.italic)),
+          child: Text(
+            'This reservation is already finalized.',
+            style: TextStyle(
+              fontFamily: 'Lato',
+              color: AppColors.textGrey,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
         ),
       );
     }
@@ -458,7 +685,12 @@ class _AdminReservationDetailScreenState
     if (buttons.isEmpty) return const SizedBox.shrink();
 
     return Column(
-      children: buttons.map((btn) => Padding(padding: const EdgeInsets.only(bottom: 12), child: btn)).toList(),
+      children: buttons
+          .map(
+            (btn) =>
+                Padding(padding: const EdgeInsets.only(bottom: 12), child: btn),
+          )
+          .toList(),
     );
   }
 
@@ -473,7 +705,15 @@ class _AdminReservationDetailScreenState
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text(text, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontFamily: 'Lato',
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
       ),
     );
   }

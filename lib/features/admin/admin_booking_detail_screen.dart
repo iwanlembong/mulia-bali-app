@@ -170,6 +170,10 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
               backgroundColor: Colors.green,
             ),
           );
+
+          // ✅ KIRIM SINYAL KE LAYAR SEBELUMNYA (LIST)
+          Navigator.pop(context, true);
+
           _fetchOrder();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -440,7 +444,9 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
                       ),
                       Text(
                         _currencyFormat.format(
-                          _order!.totalAmount + _order!.discountAmount + _order!.voucherDiscountAmount,
+                          _order!.totalAmount +
+                              _order!.discountAmount +
+                              _order!.voucherDiscountAmount,
                         ),
                         style: TextStyle(
                           color: Colors.white,

@@ -59,6 +59,9 @@ import 'features/profile/my_favorites_screen.dart';
 const String supabaseUrl = 'https://qitxjhavagqhfnkmmiyw.supabase.co';
 const String supabaseAnonKey = 'sb_publishable_Xmw5kGeXzCLMQG871sRQPA_B72M137t';
 
+// ✅ 1. BUAT GLOBAL ROUTE OBSERVER
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -104,6 +107,7 @@ class MyApp extends StatelessWidget {
 
 GoRouter _createRouter(bool isPasswordRecovery) {
   return GoRouter(
+    observers: [routeObserver], // ✅ 2. TAMBAHKAN BARIS INI
     initialLocation: isPasswordRecovery ? '/reset-password' : '/',
 
     redirect: (context, state) {

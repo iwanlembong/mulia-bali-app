@@ -43,7 +43,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // 2. Tampilkan Detail Notifikasi (Modal Bottom Sheet)
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, 
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _buildNotificationDetailSheet(notif),
     );
@@ -57,7 +57,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
         title: const Text(
-          'Notifikasi',
+          'Notifications',
           style: TextStyle(
             fontFamily: 'Playfair Display',
             fontWeight: FontWeight.bold,
@@ -82,119 +82,131 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: CircularProgressIndicator(color: AppColors.primaryGold),
             )
           : _notifications.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.notifications_off_outlined,
-                    size: 64,
-                    color: AppColors.textGrey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No notifications yet',
-                    style: TextStyle(
-                      fontFamily: 'Lato',
-                      color: AppColors.textGrey,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadNotifications,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: _notifications.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final notif = _notifications[index];
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: _getIconColor(notif.type)
-                          .withOpacity(0.1),
-                      child: Icon(
-                        _getIcon(notif.type),
-                        color: _getIconColor(notif.type),
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.notifications_off_outlined,
+                        size: 64,
+                        color: AppColors.textGrey,
                       ),
-                    ),
-                    title: Text(
-                      notif.title,
-                      style: TextStyle(
-                        fontFamily: 'Lato',
-                        fontSize: 14,
-                        fontWeight: notif.isRead
-                            ? FontWeight.normal
-                            : FontWeight.bold,
-                        color: AppColors.darkCharcoal,
+                      SizedBox(height: 16),
+                      Text(
+                        'No notifications yet',
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 16,
+                          color: AppColors.textGrey,
+                        ),
                       ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          notif.message,
-                          style: const TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 12,
-                            color: AppColors.textGrey,
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadNotifications,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _notifications.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final notif = _notifications[index];
+                      
+                      // ✅ Hanya 1 parameter
+                      final iconColor = _getIconColor(notif.type); 
+                      
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: iconColor.withOpacity(0.1),
+                          child: Icon(
+                            // // ✅ Hanya 1 parameter
+                            _getIcon(notif.type),
+                            color: iconColor,
+                            size: 22,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat('dd MMM yyyy, HH:mm').format(
-                            notif.createdAt,
-                          ), // ✅ PERBAIKAN: Hapus 'id_ID'
-                          style: const TextStyle(
+                        title: Text(
+                          notif.title,
+                          style: TextStyle(
                             fontFamily: 'Lato',
-                            fontSize: 10,
-                            color: Colors.grey,
+                            fontSize: 14,
+                            fontWeight: notif.isRead ? FontWeight.normal : FontWeight.bold,
+                            color: AppColors.darkCharcoal,
                           ),
                         ),
-                      ],
-                    ),
-                    trailing: notif.isRead
-                        ? null
-                        : const Icon(
-                            Icons.circle,
-                            size: 8,
-                            color: AppColors.primaryGold,
-                          ),
-                    onTap: () => _handleTap(notif),
-                  );
-                },
-              ),
-            ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              notif.message,
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 12,
+                                color: AppColors.textGrey,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat('dd MMM yyyy, HH:mm').format(notif.createdAt),
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: notif.isRead
+                            ? null
+                            : const Icon(
+                                Icons.circle,
+                                size: 8,
+                                color: AppColors.primaryGold,
+                              ),
+                        onTap: () => _handleTap(notif),
+                      );
+                    },
+                  ),
+                ),
     );
   }
 
+  // ✅ SEDERHANA: Langsung baca dari database, tidak perlu tebak-tebakan
   IconData _getIcon(String type) {
-    switch (type) {
+    switch (type.toLowerCase()) {
+      case 'reservation':
+        return Icons.bed_outlined; // 🛏️ Kamar
       case 'booking':
-        return Icons.bed_outlined;
+        return Icons.receipt_long; // 🧾 Services
       case 'reward':
-        return Icons.card_giftcard_outlined;
+        return Icons.card_giftcard_outlined; // 🎁 Voucher
       default:
-        return Icons.info_outline;
+        return Icons.notifications_active;
     }
   }
 
   Color _getIconColor(String type) {
-    switch (type) {
+    switch (type.toLowerCase()) {
+      case 'reservation':
+        return const Color(0xFF9370DB); // 🟣 Ungu
       case 'booking':
-        return Colors.blue.shade700;
+        return Colors.blue.shade700; // 🔵 Biru
       case 'reward':
-        return Colors.purple.shade700;
+        return Colors.green.shade700; // 🟢 Hijau
       default:
-        return AppColors.textGrey;
+        return AppColors.primaryGold;
     }
   }
 
-  // ✅ BARU: Widget untuk menampilkan detail notifikasi
+  // ✅ Widget untuk menampilkan detail notifikasi
   Widget _buildNotificationDetailSheet(NotificationItem notif) {
+    // ✅ PERBAIKAN: Panggil method dengan 3 parameter
+    final iconColor = _getIconColor(notif.type);
+    
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
@@ -205,7 +217,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Drag handle (Garis kecil di atas)
           Center(
             child: Container(
               width: 40,
@@ -217,17 +228,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          
-          // Header: Icon & Judul
+
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _getIconColor(notif.type).withOpacity(0.1),
+                  color: iconColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(_getIcon(notif.type), color: _getIconColor(notif.type), size: 28),
+                child: Icon(
+                  // ✅ PERBAIKAN: Panggil method dengan 3 parameter
+                  _getIcon(notif.type),
+                  color: iconColor,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -244,34 +259,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          
-          // Pesan Lengkap
+
           Text(
             notif.message,
             style: const TextStyle(
               fontFamily: 'Lato',
               fontSize: 15,
               color: AppColors.textGrey,
-              height: 1.6, // Jarak antar baris agar mudah dibaca
+              height: 1.6,
             ),
           ),
           const SizedBox(height: 24),
-          
-          // Tanggal & Waktu
+
           Row(
             children: [
               const Icon(Icons.access_time, size: 14, color: Colors.grey),
               const SizedBox(width: 6),
               Text(
-                // Menggunakan format default agar aman dari error LocaleDataException
-                DateFormat('dd MMM yyyy, HH:mm').format(notif.createdAt), 
-                style: const TextStyle(fontFamily: 'Lato', fontSize: 12, color: Colors.grey),
+                DateFormat('dd MMM yyyy, HH:mm').format(notif.createdAt),
+                style: const TextStyle(
+                  fontFamily: 'Lato',
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 32),
-          
-          // Tombol Tutup
+
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -279,9 +294,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.darkCharcoal,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Tutup', style: TextStyle(fontFamily: 'Lato', fontWeight: FontWeight.bold, color: Colors.white)),
+              child: const Text(
+                'Close',
+                style: TextStyle(
+                  fontFamily: 'Lato',
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],

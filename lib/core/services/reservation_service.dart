@@ -372,7 +372,7 @@ class ReservationService {
               userId: res.userId!,
               title: notifTitle,
               message: notifMessage,
-              type: 'booking',
+              type: 'reservation',
             );
           }
 
@@ -482,7 +482,7 @@ class ReservationService {
         title: 'Thank You for Staying! 🎉',
         message:
             'Reservation $resNumber has been completed. Loyalty points have been added to your account.',
-        type: 'booking',
+        type: 'reservation',
       );
 
       // 5. ✅ BARU: Kirim email konfirmasi check-out

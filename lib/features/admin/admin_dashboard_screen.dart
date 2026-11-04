@@ -14,7 +14,8 @@ class AdminDashboardScreen extends StatefulWidget {
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteAware {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen>
+    with RouteAware {
   String _userName = 'Admin';
 
   // ✅ VARIABEL STATS DINAMIS
@@ -22,11 +23,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
   int _roomsCount = 0;
   int _spaCount = 0;
 
-  // ✅ BARU: Variabel untuk menghitung antrean verifikasi
+  // ✅ BARU: Variabel untuk Restaurants, Menus, dan Weddings
+  int _restaurantsCount = 0;
+  int _menusCount = 0;
+  int _weddingsCount = 0;
+
+  // ✅ Variabel untuk menghitung antrean verifikasi
   int _pendingVerificationCount = 0;
   bool _isLoadingStats = true;
 
-  // ✅ 1. Tambahkan variabel state ini di dalam class State
+  // ✅ Variabel state untuk statistik dashboard
   Map<String, int> _dashboardStats = {
     'pending': 0,
     'checkins': 0,
@@ -39,99 +45,70 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
     super.initState();
     _loadUserInfo();
     _fetchStats();
-    _fetchPendingVerifications(); // ✅ Panggil fungsi fetch antrean verifikasi
-    _fetchDashboardStats(); // ✅ Panggil saat dashboard dibuka
+    _fetchPendingVerifications();
+    _fetchDashboardStats();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // ✅ Subscribe ke observer agar tahu saat layar ini muncul kembali
     routeObserver.subscribe(this, ModalRoute.of(context)!);
   }
 
   @override
   void dispose() {
-    // ✅ Unsubscribe untuk mencegah memory leak
     routeObserver.unsubscribe(this);
     super.dispose();
   }
 
-  // ✅ METHOD AJAIB: Dipanggil otomatis setiap kali Anda kembali ke Dashboard dari layar lain
   @override
   void didPopNext() {
-    print('🔄 [ADMIN DASHBOARD] Kembali ke dashboard, me-refresh semua stats...');
+    print(
+      '🔄 [ADMIN DASHBOARD] Kembali ke dashboard, me-refresh semua stats...',
+    );
     _fetchDashboardStats();
     _fetchStats();
     _fetchPendingVerifications();
   }
 
-  // ✅ 2. Tambahkan method ini untuk mengambil statistik secara efisien
   Future<void> _fetchDashboardStats() async {
     setState(() => _isLoadingStats = true);
 
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
 
-      // ==========================================
-      // 1. PENDING VERIFIKASI (Reservasi + Orders)
-      // ==========================================
       final pendingRes = await Supabase.instance.client
           .from('reservations')
           .select('id')
           .eq('status', 'pending');
-
       final pendingOrders = await Supabase.instance.client
           .from('orders')
           .select('id')
           .eq('status', 'pending');
-
-      // ==========================================
-      // 2. CHECK-IN HARI INI (Khusus Reservasi Kamar)
-      // ==========================================
       final checkins = await Supabase.instance.client
           .from('reservations')
           .select('id')
           .eq('status', 'confirmed')
           .eq('check_in', today);
-
-      // ==========================================
-      // 3. VOUCHER USED (Dari tabel redemptions)
-      // ==========================================
       final vouchers = await Supabase.instance.client
           .from('redemptions')
           .select('id')
           .eq('status', 'used');
-
-      // ==========================================
-      // 4. TOTAL COMPLETED (Reservasi + Orders)
-      // ==========================================
       final completedRes = await Supabase.instance.client
           .from('reservations')
           .select('id')
           .eq('status', 'completed');
-
       final completedOrders = await Supabase.instance.client
           .from('orders')
           .select('id')
           .eq('status', 'completed');
 
-      // ==========================================
-      // UPDATE STATE (Menjumlahkan hasil dari kedua tabel)
-      // ==========================================
       setState(() {
         _dashboardStats = {
-          // Total Pending = Pending Kamar + Pending Services
           'pending':
               (pendingRes as List).length + (pendingOrders as List).length,
-
-          // Check-in hanya berlaku untuk Kamar
           'checkins': (checkins as List).length,
-
-          // Voucher digunakan (sudah benar dari tabel redemptions)
           'vouchers': (vouchers as List).length,
-
-          // Total Completed = Completed Kamar + Completed Services
           'completed':
               (completedRes as List).length + (completedOrders as List).length,
         };
@@ -162,28 +139,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
     }
   }
 
-  // ✅ FUNGSI BARU: Fetch jumlah antrean verifikasi (Accommodation + Services)
   Future<void> _fetchPendingVerifications() async {
     try {
-      // 1. Hitung Reservations (Accommodation) yang pending & punya bukti
       final resResponse = await Supabase.instance.client
           .from('reservations')
           .select('id')
           .eq('status', 'pending')
-          .isFilter('rejection_reason', null) // ✅ TAMBAHKAN INI
+          .isFilter('rejection_reason', null)
           .not('payment_proof_url', 'is', null);
 
-      // 2. Hitung Orders (Services) yang pending & punya bukti
       final orderResponse = await Supabase.instance.client
           .from('orders')
           .select('id')
           .eq('status', 'pending')
-          .isFilter('rejection_reason', null) // ✅ TAMBAHKAN INI
+          .isFilter('rejection_reason', null)
           .not('payment_proof_url', 'is', null);
 
       if (mounted) {
         setState(() {
-          // Mengambil panjang list adalah cara paling aman untuk menghindari error RLS count
           final resCount = (resResponse as List).length;
           final orderCount = (orderResponse as List).length;
           _pendingVerificationCount = resCount + orderCount;
@@ -194,7 +167,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
     }
   }
 
-  // ✅ FUNGSI: Fetch jumlah data dari database
+  // ✅ DIPERBARUI: Fetch jumlah data termasuk Restaurants, Menus, dan Weddings
   Future<void> _fetchStats() async {
     setState(() => _isLoadingStats = true);
 
@@ -209,11 +182,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
           .from('spa_services')
           .select('id');
 
+      // ✅ BARU: Fetch data tambahan
+      final restaurantsResponse = await Supabase.instance.client
+          .from('restaurants')
+          .select('id');
+      final menusResponse = await Supabase.instance.client
+          .from('menu_items')
+          .select('id'); // ⚠️ Ganti 'menu_items' menjadi 'menus' jika nama tabel Anda berbeda
+      final weddingsResponse = await Supabase.instance.client
+          .from('weddings')
+          .select('id');
+
       if (mounted) {
         setState(() {
           _propertiesCount = (propertiesResponse as List).length;
           _roomsCount = (roomsResponse as List).length;
           _spaCount = (spaResponse as List).length;
+
+          // ✅ BARU: Update state
+          _restaurantsCount = (restaurantsResponse as List).length;
+          _menusCount = (menusResponse as List).length;
+          _weddingsCount = (weddingsResponse as List).length;
+
           _isLoadingStats = false;
         });
       }
@@ -311,7 +301,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
             ),
 
             const SizedBox(height: 24),
-            // ✅ 4. SISIPKAN MINI ANALYTICS DI SINI
             const Text(
               'Dashboard Overview',
               style: TextStyle(
@@ -339,13 +328,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
                     ],
                   )
                 : GridView.count(
-                    shrinkWrap:
-                        true, // ✅ Penting agar bisa di-scroll bersama halaman
-                    physics: const NeverScrollableScrollPhysics(), // ✅ Scroll ditangani oleh SingleChildScrollView induk
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    childAspectRatio: 1.1, // ✅ Membuat kartu sedikit lebih tinggi agar proporsional
+                    childAspectRatio: 1.1,
                     children: [
                       _buildStatCard(
                         title: 'Pending Verification',
@@ -442,18 +430,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
             ),
             const SizedBox(height: 16),
 
-            // ✅ Baris 3
+            // Baris 3
             Row(
               children: [
                 Expanded(
                   child: _buildModuleCard(
                     context,
-                    icon: Icons.card_giftcard, // Ikon Hadiah
+                    icon: Icons.card_giftcard,
                     title: 'Rewards',
                     subtitle: 'Manage points & gifts',
-                    color: Colors
-                        .purple
-                        .shade700, // Warna Ungu (konsisten dengan Voucher)
+                    color: Colors.purple.shade700,
                     onTap: () => context.push('/admin/rewards'),
                   ),
                 ),
@@ -461,18 +447,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
                 Expanded(
                   child: _buildModuleCard(
                     context,
-                    icon: Icons.people_outline, // Ikon Anggota/User
+                    icon: Icons.people_outline,
                     title: 'Members',
                     subtitle: 'View user profiles',
-                    color: Colors.blue.shade700, // Warna Biru (pembeda)
-                    // Nanti bisa diarahkan ke halaman daftar member jika sudah dibuat
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Members page coming soon!'),
-                        ),
-                      );
-                    },
+                    color: Colors.blue.shade700,
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Members page coming soon!'),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -563,7 +546,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
             ),
             const SizedBox(height: 16),
 
-            // ✅ BARIS 7: Payment Verification (DINAMIS)
+            // BARIS 7: Payment Verification (DINAMIS)
             Row(
               children: [
                 Expanded(
@@ -584,16 +567,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
                         context,
                         icon: Icons.verified_user_outlined,
                         title: 'Payment Verification',
-                        // ✅ Subtitle berubah tergantung ada antrean atau tidak
                         subtitle: _pendingVerificationCount > 0
                             ? '$_pendingVerificationCount pending approval'
                             : 'Approve user transfers',
-                        // ✅ Warna berubah jadi Orange jika ada antrean, Hijau jika aman
                         color: _pendingVerificationCount > 0
                             ? Colors.orange.shade700
                             : Colors.green.shade700,
                         onTap: () async {
-                          // ✅ PERBAIKAN: Gunakan Navigator.push agar bisa mendeteksi saat kembali
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -601,11 +581,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
                                   const AdminPaymentVerificationScreen(),
                             ),
                           );
-                          // ✅ Saat kembali dari halaman verifikasi, refresh counter secara otomatis
                           _fetchPendingVerifications();
                         },
                       ),
-                      // ✅ BADGE MERAH POJOK KANAN ATAS (Jika ada antrean)
                       if (_pendingVerificationCount > 0)
                         Positioned(
                           right: 12,
@@ -644,10 +622,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
 
             const SizedBox(height: 32),
 
-            // STATS SECTION
+            // ✅ STATS SECTION (DIPERBARUI MENJADI GRID 3 KOLOM)
             Row(
-              mainAxisAlignment: MainAxisAlignment
-                  .spaceBetween, // ✅ Mendorong teks ke kiri, tombol ke kanan
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Quick Status',
@@ -658,8 +635,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
                     color: AppColors.darkCharcoal,
                   ),
                 ),
-
-                // ✅ Tombol Refresh
                 IconButton(
                   icon: const Icon(
                     Icons.refresh,
@@ -667,11 +642,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
                     size: 24,
                   ),
                   onPressed: () async {
-                    // 1. Refresh data statistik baru (Pending, Check-in, Voucher, Completed)
                     await _fetchDashboardStats();
-
-                    // 2. Refresh data statistik lama (Properties, Rooms, Spa)
-                    // (Pastikan method _fetchStats() masih ada di class Anda)
                     await _fetchStats();
                   },
                   tooltip: 'Refresh All Data',
@@ -681,6 +652,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
               ],
             ),
             const SizedBox(height: 16),
+
             _isLoadingStats
                 ? const Center(
                     child: Padding(
@@ -690,35 +662,50 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
                       ),
                     ),
                   )
-                : Row(
+                : GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount:
+                        3, // ✅ 3 kolom agar muat 6 item dengan rapi (2 baris)
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.0, // ✅ Menyesuaikan proporsi kartu
                     children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          title: 'Properties', // ✅ Gunakan named parameter
-                          value: _propertiesCount, // ✅ Kirim sebagai int, bukan .toString()
-                          icon: Icons.business,
-                          color: Colors
-                              .blue
-                              .shade700, // ✅ Tambahkan warna yang wajib
-                        ),
+                      _buildStatCard(
+                        title: 'Properties',
+                        value: _propertiesCount,
+                        icon: Icons.business,
+                        color: Colors.blue.shade700,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          title: 'Rooms',
-                          value: _roomsCount,
-                          icon: Icons.bed,
-                          color: Colors.green.shade700,
-                        ),
+                      _buildStatCard(
+                        title: 'Rooms',
+                        value: _roomsCount,
+                        icon: Icons.bed,
+                        color: Colors.green.shade700,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          title: 'Spa',
-                          value: _spaCount,
-                          icon: Icons.spa,
-                          color: Colors.purple.shade700,
-                        ),
+                      _buildStatCard(
+                        title: 'Spa',
+                        value: _spaCount,
+                        icon: Icons.spa,
+                        color: Colors.purple.shade700,
+                      ),
+                      _buildStatCard(
+                        title: 'Restaurants',
+                        value: _restaurantsCount,
+                        icon: Icons.restaurant,
+                        color: const Color(0xFF6B8E23),
+                      ),
+                      _buildStatCard(
+                        title: 'Menus',
+                        value: _menusCount,
+                        icon: Icons.menu_book,
+                        color: Colors.orange.shade700,
+                      ),
+                      _buildStatCard(
+                        title: 'Weddings',
+                        value: _weddingsCount,
+                        icon: Icons.favorite,
+                        color: Colors.pink.shade300,
                       ),
                     ],
                   ),
@@ -789,7 +776,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
     );
   }
 
-  // ✅ 3. Widget Helper untuk Kartu Statistik
   Widget _buildStatCard({
     required String title,
     required int value,
@@ -797,7 +783,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(
+        12,
+      ), // ✅ Sedikit diperkecil agar muat di 3 kolom
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -816,34 +804,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with RouteA
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: 20),
               ),
               Text(
                 value.toString(),
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: 'Playfair Display',
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: AppColors.darkCharcoal,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             title,
             style: const TextStyle(
               fontFamily: 'Lato',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppColors.textGrey,
               letterSpacing: 0.5,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

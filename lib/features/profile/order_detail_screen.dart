@@ -894,11 +894,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  // ✅ HELPER: Cek apakah item sudah direview
-  Future<bool> _checkIfReviewed(String itemId) async {
-    final reviewedIds = await ReviewService.getUserReviewedItemIds();
-    return reviewedIds.contains(itemId);
-  }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(

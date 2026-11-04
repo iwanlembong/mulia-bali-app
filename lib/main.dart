@@ -55,6 +55,7 @@ import 'features/admin/admin_add_reward_screen.dart';
 import 'features/profile/notifications_screen.dart'; // <-- Tambahkan di atas
 import 'features/admin/admin_redemptions_screen.dart';
 import 'features/profile/my_favorites_screen.dart';
+import 'features/admin/admin_reviews_screen.dart';
 
 const String supabaseUrl = 'https://qitxjhavagqhfnkmmiyw.supabase.co';
 const String supabaseAnonKey = 'sb_publishable_Xmw5kGeXzCLMQG871sRQPA_B72M137t';
@@ -370,6 +371,10 @@ GoRouter _createRouter(bool isPasswordRecovery) {
       GoRoute(
         path: '/admin/redemptions',
         builder: (context, state) => const AdminRedemptionsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/reviews',
+        builder: (context, state) => const AdminReviewsScreen(),
       ),
       GoRoute(path: '/cart', builder: (context, state) => const CartScreen()),
       GoRoute(

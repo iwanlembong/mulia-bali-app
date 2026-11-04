@@ -52,7 +52,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    routeObserver.subscribe(this, ModalRoute.of(context)!);
+
+    // ✅ PERBAIKAN: Cek null sebelum subscribe untuk mencegah crash fatal
+    final route = ModalRoute.of(context);
+
+    if (route != null) {
+      routeObserver.subscribe(this, route);
+    }
   }
 
   @override
@@ -444,18 +450,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ),
                 ),
                 const SizedBox(width: 16),
+                // ✅ BARU: Kartu Manage Reviews
                 Expanded(
                   child: _buildModuleCard(
                     context,
-                    icon: Icons.people_outline,
-                    title: 'Members',
-                    subtitle: 'View user profiles',
-                    color: Colors.blue.shade700,
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Members page coming soon!'),
-                      ),
-                    ),
+                    icon: Icons.rate_review, // Ikon Review
+                    title: 'Reviews',
+                    subtitle: 'Moderate user reviews',
+                    color: Colors.orange.shade700, // Warna Orange agar mencolok
+                    onTap: () => context.push('/admin/reviews'),
                   ),
                 ),
               ],

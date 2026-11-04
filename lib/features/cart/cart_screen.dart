@@ -11,6 +11,7 @@ import '../../core/services/order_service.dart';
 import '../../core/services/email_service.dart';
 import '../../core/services/promo_service.dart'; // ✅ BARU: Import PromoService
 import '../../core/services/reward_service.dart';
+import '../../core/services/notification_service.dart'; // ✅ TAMBAHKAN INI
 import '../booking/booking_payment_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -56,10 +57,11 @@ class _CartScreenState extends State<CartScreen> {
   // ✅ Helper untuk menghitung total akhir setelah diskon (Promo ATAU Voucher)
   int get _finalTotalAmount {
     if (_cart == null) return 0;
-    final promoDiscount = _appliedPromo?.calculateDiscount(_cart!.totalAmount) ?? 0;
+    final promoDiscount =
+        _appliedPromo?.calculateDiscount(_cart!.totalAmount) ?? 0;
     return _cart!.totalAmount - promoDiscount - _voucherDiscount;
   }
-  
+
   Future<void> _fetchCart() async {
     setState(() => _isLoading = true);
     final cart = await CartService.getOrCreateActiveCart();
@@ -320,33 +322,22 @@ class _CartScreenState extends State<CartScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Subtotal: ${_currencyFormat.format(_cart!.totalAmount)}'),
-            // ✅ Tampilkan Diskon Promo jika ada
             if (_appliedPromo != null) ...[
               const SizedBox(height: 4),
               Text(
                 'Discount (${_appliedPromo!.code}): - ${_currencyFormat.format(_appliedPromo!.calculateDiscount(_cart!.totalAmount))}',
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
               ),
             ],
-
-            // ✅ BARU: Tampilkan Diskon Voucher jika ada
             if (_selectedVoucher != null) ...[
               const SizedBox(height: 4),
               Text(
                 'Voucher (${_selectedVoucher!.rewardTitle}): - ${_currencyFormat.format(_voucherDiscount)}',
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
               ),
             ],
-
             const Divider(height: 24),
             Text(
-              // ✅ Gunakan _finalTotalAmount yang sudah kita definisikan di getter atas
               'Total: ${_currencyFormat.format(_finalTotalAmount)}',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
@@ -364,9 +355,7 @@ class _CartScreenState extends State<CartScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryGold,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGold),
             child: const Text('Confirm', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -374,8 +363,9 @@ class _CartScreenState extends State<CartScreen> {
     );
 
     if (confirm != true) return;
-
     if (!mounted) return;
+
+    // Tampilkan loading
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -384,35 +374,42 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
 
-    // ✅ BARU: Kirimkan promoCode dan discountAmount ke OrderService
-    // final discountAmount =
-    // _appliedPromo?.calculateDiscount(_cart!.totalAmount) ?? 0;
+    // 1. Buat Order dari Cart
     final order = await OrderService.createOrderFromCart(
       promoCode: _appliedPromo?.code,
       discountAmount: _appliedPromo?.calculateDiscount(_cart!.totalAmount) ?? 0,
-      voucherId: _selectedVoucher?.id, // ✅ BARU
-      voucherDiscount: _voucherDiscount, // ✅ BARU
+      voucherId: _selectedVoucher?.id,
+      voucherDiscount: _voucherDiscount,
     );
 
-    if (mounted) Navigator.pop(context);
+    if (mounted) Navigator.pop(context); // Tutup loading
     if (!mounted) return;
 
     if (order != null) {
+      // 2. Kirim Email Konfirmasi (Kode lama Anda)
       if (order.userEmail != null && order.userEmail != 'No Email') {
         final guestName = order.userName ?? 'Valued Guest';
-        final htmlContent = EmailService.generateConfirmationTemplate(
-          order,
-          guestName,
-        );
+        final htmlContent = EmailService.generateConfirmationTemplate(order, guestName);
 
         EmailService.sendEmail(
           to: order.userEmail!,
           subject: 'Booking Received - ${order.orderNumber}',
           htmlContent: htmlContent,
         ).then((success) {
-          if (success)
-            print('✅ [EMAIL] Confirmation email sent to ${order.userEmail}');
+          if (success) print('✅ [EMAIL] Confirmation email sent to ${order.userEmail}');
         });
+      }
+
+      // ✅ 3. BARU: Kirim Notifikasi In-App ke User
+      final currentUserId = AuthService.currentUserId;
+      if (currentUserId != null) {
+        await NotificationService.createNotification(
+          userId: order.userId,
+          title: 'Booking Request Received! 🛒',
+          message: 'Your booking request (${order.orderNumber}) has been successfully received. Please complete the payment to confirm your booking.',
+          type: 'booking', // ✅ PENTING: Tetap 'booking' agar ikonnya Struk & warnanya Biru
+        );
+        print('✅ [NOTIF] In-app notification created for order ${order.orderNumber}');
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -423,24 +420,23 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
+      // 4. Reset Cart State
       setState(() {
         _cart = null;
-        _appliedPromo = null; // ✅ Reset promo setelah checkout
-        _selectedVoucher = null; // ✅ BARU: Reset voucher
-        _voucherDiscount = 0; // ✅ BARU: Reset diskon voucher
+        _appliedPromo = null;
+        _selectedVoucher = null;
+        _voucherDiscount = 0;
         _promoController.clear();
       });
 
+      // 5. Arahkan ke halaman pembayaran
       if (mounted) {
-        // 🚀 PERUBAHAN: Arahkan ke halaman pembayaran terlebih dahulu
-        // Agar user bisa langsung upload bukti transfer sebelum melihat halaman sukses
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => BookingPaymentScreen(orderId: order.id),
           ),
         ).then((paymentSuccess) {
-          // Jika pembayaran berhasil diupload, baru arahkan ke halaman konfirmasi
           if (paymentSuccess == true && mounted) {
             context.go('/booking-confirmation', extra: order);
           }

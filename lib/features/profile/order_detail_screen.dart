@@ -27,6 +27,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   bool _isCancelling = false; // ✅ BARU
 
+  // ✅ TAMBAHKAN BARIS INI DI SINI:
+  Set<String> _reviewedItemIds = {}; 
+
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'IDR ',
@@ -42,9 +45,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _fetchOrder() async {
     setState(() => _isLoading = true);
     final order = await OrderService.getOrderById(widget.orderId);
+    // ✅ 1. AMBIL DATA REVIEW DARI DATABASE
+    final reviewedIds = await ReviewService.getUserReviewedItemIds();
+
     if (mounted) {
       setState(() {
         _order = order;
+        _reviewedItemIds = reviewedIds; // ✅ 2. SIMPAN KE VARIABEL STATE
         _isLoading = false;
       });
 
@@ -572,7 +579,32 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
               )
             else
-              ..._order!.items.map((item) => _buildItemCard(item)).toList(),
+              // ✅ DIPERBARUI: Mengirimkan reviewedIds dan callback review
+              ..._order!.items.map((item) => _buildItemCard(
+                item, 
+                _reviewedItemIds, 
+                () {
+                  // ✅ Callback saat tombol review item diklik
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    builder: (context) => ReviewModal(
+                      itemType: item.itemType, // ✅ Kirim tipe item spesifik (spa/dining/wedding)
+                      itemId: item.itemId,     // ✅ Kirim ID item spesifik
+                      onReviewSubmitted: () {
+                        Navigator.pop(context);
+                        _fetchOrder(); // Refresh halaman
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Thank you for your review!'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
+                        );
+                      },
+                    ),
+                  );
+                }
+              )).toList(),
 
             const SizedBox(height: 24),
 
@@ -716,7 +748,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             if (_order!.status == 'pending') _buildPendingActions(),
 
             // ✅ 2. BARU: Jika status Confirmed atau Completed (Download Invoice)
-            if (_order!.status == 'confirmed' || _order!.status == 'completed') ...[
+            if (_order!.status == 'confirmed' ||
+                _order!.status == 'completed') ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -729,11 +762,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
-                    
+
                     try {
                       // Panggil service PDF yang sudah kita buat
                       await PdfService.generateOrderInvoice(_order!);
-                      
+
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -748,7 +781,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Failed to create invoice. Try again.'),
+                            content: Text(
+                              'Failed to create invoice. Try again.',
+                            ),
                             backgroundColor: Colors.red,
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -776,100 +811,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ),
                 ),
               ),
-            ],
-
-            // ✅ BARU: TOMBOL WRITE A REVIEW (Hanya untuk status Completed)
-            if (_order!.status == 'completed' && _order!.items.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-              
-              // Cek apakah item pertama sudah direview
-              FutureBuilder<bool>(
-                future: _checkIfReviewed(_order!.items.first.itemId),
-                builder: (context, snapshot) {
-                  final isReviewed = snapshot.data ?? false;
-                  
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(color: AppColors.primaryGold),
-                      ),
-                    );
-                  }
-                  
-                  if (isReviewed) {
-                    // ✅ TAMPILAN 1: Sudah direview (Badge Hijau)
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.check_circle, color: Colors.green, size: 24),
-                        SizedBox(width: 12),
-                        Text(
-                          'REVIEWED',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    );
-                  } else {
-                    // ✅ TAMPILAN 2: Belum direview (Tombol)
-                    return SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          final reviewItem = _order!.items.first;
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                            ),
-                            builder: (context) => ReviewModal(
-                              itemType: reviewItem.itemType,
-                              itemId: reviewItem.itemId,
-                              onReviewSubmitted: () {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Thank you for your review!'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.rate_review, size: 20),
-                        label: const Text(
-                          'WRITE A REVIEW',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primaryGold,
-                          side: const BorderSide(color: AppColors.primaryGold),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-            ],
+            ],          
 
             // ✅ Loading indicator saat cancelling
             if (_isCancelling)
@@ -993,9 +935,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  Widget _buildItemCard(OrderItem item) {
+  // ✅ DIPERBARUI: Tambahkan parameter reviewedIds dan onReviewPressed
+  Widget _buildItemCard(
+    OrderItem item,
+    Set<String> reviewedIds,
+    VoidCallback onReviewPressed,
+  ) {
     final metadata = _formatMetadata(item);
     final color = _getItemTypeColor(item.itemType);
+
+    // ✅ CEK STATUS REVIEW UNTUK ITEM INI
+    final isReviewed = reviewedIds.contains(item.itemId);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1110,6 +1060,68 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
               ],
             ),
+
+            // ✅ BARU: TOMBOL REVIEW DI DALAM SETIAP ITEM CARD
+            if (_order!.status == 'completed') ...[
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+
+              if (isReviewed)
+                // ✅ TAMPILAN JIKA ITEM INI SUDAH DIREVIEW
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 18),
+                      SizedBox(width: 6),
+                      Text(
+                        'REVIEWED',
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                // ✅ TAMPILAN JIKA ITEM INI BELUM DIREVIEW
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        onReviewPressed, // ✅ Panggil callback dari parent
+                    icon: const Icon(Icons.rate_review, size: 16),
+                    label: const Text(
+                      'WRITE A REVIEW',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryGold,
+                      side: const BorderSide(color: AppColors.primaryGold),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),

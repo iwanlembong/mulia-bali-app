@@ -39,8 +39,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     'Cancelled',
   ];
 
- Set<String> _reviewedItemIds = {}; // ✅ Menyimpan ID item yang sudah direview
-
   @override
   void initState() {
     super.initState();
@@ -59,13 +57,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
     final orders = await OrderService.getUserOrders();
 
-    // ✅ Ambil ID item yang sudah direview
-    final reviewedIds = await ReviewService.getUserReviewedItemIds();
-
     if (mounted) {
       setState(() {
         _allOrders = orders;
-        _reviewedItemIds = reviewedIds; // ✅ Simpan ke state
         _isLoading = false;
       });
     }
@@ -501,68 +495,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                     ),
                   ),
               ],
-
-              // ✅ LOGIKA TOMBOL REVIEW YANG CERDAS (Menggunakan _reviewedItemIds)
-               if (order.status == 'completed' && order.items.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Divider(height: 1),
-                const SizedBox(height: 12),
-
-                // Cek apakah itemId ini sudah ada di dalam Set _reviewedItemIds
-                if (_reviewedItemIds.contains(order.items.first.itemId))
-                  // ✅ TAMPILAN 1: Jika SUDAH direview (Badge Hijau)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.check_circle, color: Colors.green, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'REVIEWED',
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  // ✅ TAMPILAN 2: Jika BELUM direview (Tombol)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        final reviewItem = order.items.first;
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                          ),
-                          builder: (context) => ReviewModal(
-                            itemType: reviewItem.itemType,
-                            itemId: reviewItem.itemId,
-                            onReviewSubmitted: _fetchOrders, // ✅ Refresh otomatis
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.rate_review, size: 18),
-                      label: const Text(
-                        'WRITE A REVIEW',
-                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primaryGold,
-                        side: const BorderSide(color: AppColors.primaryGold),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                  ),
-              ],
-              
             ],
           ),
         ),

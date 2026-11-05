@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class AuthService {
   // Ambil instance client Supabase
@@ -34,7 +35,7 @@ class AuthService {
   }
 
   static String get userEmail => currentUser?.email ?? 'guest@themulia.com';
-  static String get userMembership => 'GOLD MEMBER'; 
+  static String get userMembership => 'GOLD MEMBER';
 
   // ✅ Variabel untuk menyimpan path sebelum login
   static String? _returnPath;
@@ -46,18 +47,29 @@ class AuthService {
 
   static String? getAndClearReturnPath() {
     final path = _returnPath;
-    _returnPath = null; 
+    _returnPath = null;
     return path;
   }
 
   // ✅ 2. METHOD INI DIPANGGIL SAAT APP DIMULAI (di main.dart)
   static Future<void> initialize() async {
-    final user = _client.auth.currentUser;
-    if (user != null) {
-      await fetchUserRole(); 
-    } else {
-      _isAdmin = false;
+    try {
+      final user = _client.auth.currentUser;
+      if (user != null) {
+        await fetchUserRole();
+      } else {
+        _isAdmin = false;
+      }
+    } catch (e) {
+      print('⚠️ [AUTH] Error during auth init: $e');
     }
+
+    // ✅ Panggil Firebase dengan aman (terpisah dari auth)
+    // try {
+    //   await setupFirebaseMessaging();
+    // } catch (e) {
+    //   print('⚠️ [FCM] Setup skipped due to error: $e');
+    // }
   }
 
   // ✅ 3. FETCH ROLE DARI DATABASE
@@ -67,10 +79,10 @@ class AuthService {
       try {
         final response = await _client
             .from('profiles')
-            .select('role') 
+            .select('role')
             .eq('id', user.id)
             .maybeSingle();
-            
+
         _isAdmin = response != null && response['role'] == 'admin';
         print('🔍 [AUTH] User role fetched: ${_isAdmin ? "ADMIN" : "USER"}');
       } catch (e) {
@@ -82,9 +94,36 @@ class AuthService {
     }
   }
 
+  // ✅ METHOD BARU: Minta izin dan ambil FCM Token (Versi Aman)
+  static Future<void> setupFirebaseMessaging() async {
+    try {
+      final messaging = FirebaseMessaging.instance;
+
+      // 1. Minta izin notifikasi
+      NotificationSettings settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      print('✅ [FCM] Authorization status: ${settings.authorizationStatus}');
+
+      // 2. Ambil Token unik perangkat
+      String? token = await messaging.getToken();
+      if (token != null) {
+        print('🔑 [FCM] DEVICE TOKEN: $token');
+      } else {
+        print('⚠️ [FCM] Token is null');
+      }
+    } catch (e) {
+      // ✅ Tangkap semua error agar tidak crash aplikasi
+      print('⚠️ [FCM] Setup failed (non-fatal): $e');
+    }
+  }
+
   // ✅ 4. METHOD TAMBAHAN: Agar kode Anda yang lain tidak error
   static void clearCachedRole() {
-    _isAdmin = false; 
+    _isAdmin = false;
     print('🧹 [AUTH] Role cache cleared.');
   }
 
@@ -114,16 +153,14 @@ class AuthService {
     return await _client.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'full_name': fullName,
-      }, 
+      data: {'full_name': fullName},
     );
   }
 
   // ✅ 7. FUNGSI LOGOUT (Reset status admin saat logout!)
   static Future<void> logout() async {
     await _client.auth.signOut();
-    _isAdmin = false; 
+    _isAdmin = false;
     _returnPath = null;
     print('🚪 [AUTH] User logged out. Admin status reset.');
   }
@@ -132,7 +169,7 @@ class AuthService {
   static Future<void> resetPassword(String email) async {
     await _client.auth.resetPasswordForEmail(
       email,
-      redirectTo: 'https://mulia-bali-demo.web.app/reset-password', 
+      redirectTo: 'https://mulia-bali-demo.web.app/reset-password',
     );
   }
 

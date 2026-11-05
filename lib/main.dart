@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -60,6 +62,14 @@ import 'features/reservations/my_reservations_screen.dart';
 import 'features/reservations/reservation_detail_screen.dart';
 import 'features/reservations/payment_instruction_screen.dart';
 
+
+// ✅ TAMBAHKAN FUNGSI INI DI BAGIAN PALING ATAS FILE (Di luar class MyApp)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("🔔 [FCM] Handling a background message: ${message.messageId}");
+}
+
 const String supabaseUrl = 'https://qitxjhavagqhfnkmmiyw.supabase.co';
 const String supabaseAnonKey = 'sb_publishable_Xmw5kGeXzCLMQG871sRQPA_B72M137t';
 
@@ -70,6 +80,12 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 void main() async {
   // 1. Wajib ada di paling atas
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ 1. INISIALISASI FIREBASE (Wajib dilakukan sebelum runApp)
+  await Firebase.initializeApp();
+
+  // ✅ 2. DAFTARKAN BACKGROUND HANDLER (Wajib agar tidak crash di Android)
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // 2. Load .env dengan aman (Mencegah crash jika file .env hilang/bermasalah)
   try {

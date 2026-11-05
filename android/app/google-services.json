@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "976172539153",
+    "project_id": "the-mulia-bali-app",
+    "storage_bucket": "the-mulia-bali-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:976172539153:android:c8d9003429531eca3ac0b0",
+        "android_client_info": {
+          "package_name": "com.example.mulia_bali_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYR1tIjHFKFv4b0KZvU3r0eW4Rxn1zwAs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

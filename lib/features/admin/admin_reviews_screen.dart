@@ -130,6 +130,124 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     }
   }
 
+    void _showReplyDialog(Map<String, dynamic> review) {
+    final replyController = TextEditingController(
+      text: review['admin_reply'] ?? '',
+    );
+    final reviewId = review['id'];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(
+          'Reply to Review',
+          style: TextStyle(
+            fontFamily: 'Playfair Display',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'User: ${review['user_name'] ?? 'Unknown'}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: AppColors.textGrey,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '"${review['comment']}"',
+              style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 13),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: replyController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: 'Type your reply here...',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: AppColors.offWhite,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final replyText = replyController.text.trim();
+              if (replyText.isEmpty) return; // Cegah kirim balasan kosong
+
+              try {
+                // ✅ LANGKAH 1: Simpan ke Database (Tetap kita lakukan agar data aman)
+                await Supabase.instance.client
+                    .from('reviews')
+                    .update({
+                      'admin_reply': replyText,
+                      'admin_reply_at': DateTime.now().toIso8601String(),
+                    })
+                    .eq('id', reviewId);
+
+                // ✅ LANGKAH 2: Tutup Dialog
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+
+                // ✅ LANGKAH 3: UPDATE UI SECARA LOKAL (INSTAN, TANPA FLICKER!)
+                if (mounted) {
+                  // Cari index review yang baru saja dibalas di dalam list _reviews
+                  final index = _reviews.indexWhere((r) => r['id'] == reviewId);
+                  
+                  if (index != -1) {
+                    setState(() {
+                      // Update data di memori secara langsung
+                      _reviews[index]['admin_reply'] = replyText;
+                      _reviews[index]['admin_reply_at'] = DateTime.now().toIso8601String();
+                    });
+                  }
+
+                  // Tampilkan notifikasi sukses
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Reply updated successfully!'), 
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (dialogContext.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to send reply: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGold,
+            ),
+            child: const Text(
+              'Send Reply',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   IconData _getIcon(String type) {
     switch (type) {
       case 'spa':
@@ -203,18 +321,30 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                   final date = DateTime.parse(review['created_at']);
                   final color = _getColor(itemType);
 
+                  // ✅ CEK APAKAH SUDAH DIBALAS
+                  final hasReplied =
+                      review['admin_reply'] != null &&
+                      review['admin_reply'].toString().isNotEmpty;
+
+                  // ✅ PENTING: Tambahkan ValueKey agar Flutter paksa rebuild kartu ini jika status berubah
                   return Card(
+                    key: ValueKey('review_${review['id']}_$hasReplied'),
                     margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 1,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: hasReplied
+                            ? Colors.green.shade400
+                            : Colors.transparent,
+                        width: hasReplied ? 1.5 : 0,
+                      ),
                     ),
-                    elevation: 1,
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header: User Info & Delete Button
                           Row(
                             children: [
                               CircleAvatar(
@@ -240,7 +370,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                                       ),
                                     ),
                                     Text(
-                                      '${itemType.toUpperCase()} • ${DateFormat('dd MMM yyyy, HH:mm').format(date)}',
+                                      '${itemType.toUpperCase()} • ${DateFormat('dd MMM yyyy').format(date)}',
                                       style: const TextStyle(
                                         fontFamily: 'Lato',
                                         fontSize: 11,
@@ -250,6 +380,60 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                                   ],
                                 ),
                               ),
+
+                              // ✅ BADGE REPLIED
+                              if (hasReplied) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.green.shade300,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green.shade700,
+                                        size: 12,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Replied',
+                                        style: TextStyle(
+                                          color: Colors.green.shade700,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+
+                              // ✅ TOMBOL REPLY (Warna berubah dinamis)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.reply,
+                                  color: hasReplied
+                                      ? Colors.green.shade700
+                                      : AppColors.primaryGold, // ✅ Berubah jadi Hijau
+                                  size: 22,
+                                ),
+                                onPressed: () => _showReplyDialog(review),
+                                tooltip: hasReplied
+                                    ? 'Edit Reply'
+                                    : 'Reply to Review',
+                              ),
+
+                              // TOMBOL DELETE
                               IconButton(
                                 icon: const Icon(
                                   Icons.delete_outline,
@@ -264,7 +448,6 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                           const SizedBox(height: 12),
                           const Divider(height: 1),
                           const SizedBox(height: 12),
-                          // Rating Stars
                           Row(
                             children: List.generate(5, (i) {
                               return Icon(
@@ -275,7 +458,6 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                             }),
                           ),
                           const SizedBox(height: 8),
-                          // Comment
                           Text(
                             comment,
                             style: const TextStyle(
@@ -285,6 +467,43 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                               height: 1.5,
                             ),
                           ),
+
+                          // ✅ PREVIEW BALASAN
+                          if (hasReplied) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Your Reply:',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textGrey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    review['admin_reply'],
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.darkCharcoal,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

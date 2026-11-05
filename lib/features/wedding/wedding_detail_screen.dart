@@ -708,6 +708,58 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                       ),
                     ),
                   ],
+                  // ✅ BARU: TAMPILKAN BALASAN ADMIN JIKA ADA
+                  if (review['admin_reply'] != null &&
+                      review['admin_reply'].toString().isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGold.withOpacity(
+                          0.08,
+                        ), // Background sangat muda
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.primaryGold.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.verified_user,
+                                size: 16,
+                                color: AppColors.primaryGold,
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Management Response',
+                                style: TextStyle(
+                                  fontFamily: 'Lato',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkCharcoal,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            review['admin_reply'],
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 13,
+                              color: AppColors.darkCharcoal,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );

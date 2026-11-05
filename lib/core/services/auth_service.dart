@@ -4,19 +4,28 @@ class AuthService {
   // Ambil instance client Supabase
   static final SupabaseClient _client = Supabase.instance.client;
 
+  // ✅ 1. SINGLE SOURCE OF TRUTH untuk status admin
+  static bool _isAdmin = false;
+  static bool get isAdmin => _isAdmin;
+
   // Cek apakah user sedang login
-  static bool get isLoggedIn => _client.auth.currentSession != null;
+  static bool get isLoggedIn {
+    try {
+      return _client.auth.currentSession != null;
+    } catch (e) {
+      return false; // Jika error, anggap belum login
+    }
+  }
 
   // Ambil data user yang sedang login
   static User? get currentUser => _client.auth.currentUser;
 
-  // ✅ TAMBAHKAN BARIS INI: Untuk mendapatkan ID user yang sedang login
+  // ✅ Dapatkan ID user yang sedang login
   static String? get currentUserId => currentUser?.id;
 
   static String get userName {
     final user = currentUser;
     if (user != null) {
-      // Coba ambil dari metadata, atau fallback ke email
       return user.userMetadata?['full_name'] ??
           user.email?.split('@')[0] ??
           'Guest';
@@ -25,71 +34,61 @@ class AuthService {
   }
 
   static String get userEmail => currentUser?.email ?? 'guest@themulia.com';
-  static String get userMembership =>
-      'GOLD MEMBER'; // Bisa diambil dari tabel profiles nanti
-  /// Cache role untuk menghindari query berulang
-  static String? _cachedRole;
+  static String get userMembership => 'GOLD MEMBER'; 
 
-  // ✅ 1. TAMBAHKAN METHOD INI: Dipanggil saat app dimulai
-  static Future<void> initialize() async {
-    if (isLoggedIn) {
-      await fetchUserRole();
-    }
-  }
-
-  /// Cek apakah user saat ini adalah admin
-  static bool get isAdmin {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return false;
-
-    // Cek dari cache role yang kita simpan
-    return _cachedRole == 'admin';
-  }
-
-  // ✅ TAMBAHKAN: Variabel untuk menyimpan path sebelum login
+  // ✅ Variabel untuk menyimpan path sebelum login
   static String? _returnPath;
 
-  // ✅ TAMBAHKAN: Method untuk menyimpan return path
   static void setReturnPath(String path) {
     _returnPath = path;
     print('💾 [AUTH] Return path disimpan: $path');
   }
 
-  // ✅ TAMBAHKAN: Method untuk mengambil dan menghapus return path
   static String? getAndClearReturnPath() {
     final path = _returnPath;
-    _returnPath = null; // Hapus setelah diambil (one-time use)
+    _returnPath = null; 
     return path;
   }
 
-  /// Fetch role user dari database
-  static Future<String?> fetchUserRole() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      _cachedRole = null;
-      return null;
-    }
-
-    try {
-      final response = await Supabase.instance.client
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-
-      _cachedRole = response?['role'] as String?;
-      return _cachedRole;
-    } catch (e) {
-      print('Error fetching user role: $e');
-      return null;
+  // ✅ 2. METHOD INI DIPANGGIL SAAT APP DIMULAI (di main.dart)
+  static Future<void> initialize() async {
+    final user = _client.auth.currentUser;
+    if (user != null) {
+      await fetchUserRole(); 
+    } else {
+      _isAdmin = false;
     }
   }
 
+  // ✅ 3. FETCH ROLE DARI DATABASE
+  static Future<void> fetchUserRole() async {
+    final user = _client.auth.currentUser;
+    if (user != null) {
+      try {
+        final response = await _client
+            .from('profiles')
+            .select('role') 
+            .eq('id', user.id)
+            .maybeSingle();
+            
+        _isAdmin = response != null && response['role'] == 'admin';
+        print('🔍 [AUTH] User role fetched: ${_isAdmin ? "ADMIN" : "USER"}');
+      } catch (e) {
+        print('❌ [AUTH] Error fetching user role: $e');
+        _isAdmin = false;
+      }
+    } else {
+      _isAdmin = false;
+    }
+  }
+
+  // ✅ 4. METHOD TAMBAHAN: Agar kode Anda yang lain tidak error
   static void clearCachedRole() {
-    _cachedRole = null;
+    _isAdmin = false; 
+    print('🧹 [AUTH] Role cache cleared.');
   }
 
-  // Fungsi Login Nyata
+  // ✅ 5. FUNGSI LOGIN
   static Future<AuthResponse> login({
     required String email,
     required String password,
@@ -99,7 +98,6 @@ class AuthService {
       password: password,
     );
 
-    // ✅ Jika login berhasil, langsung fetch role-nya
     if (response.user != null) {
       await fetchUserRole();
     }
@@ -107,7 +105,7 @@ class AuthService {
     return response;
   }
 
-  // Fungsi Register Nyata
+  // ✅ 6. FUNGSI REGISTER
   static Future<AuthResponse> register({
     required String email,
     required String password,
@@ -118,25 +116,27 @@ class AuthService {
       password: password,
       data: {
         'full_name': fullName,
-      }, // Ini akan memicu trigger di database untuk membuat profil
+      }, 
     );
   }
 
-  // Fungsi Logout
+  // ✅ 7. FUNGSI LOGOUT (Reset status admin saat logout!)
   static Future<void> logout() async {
     await _client.auth.signOut();
+    _isAdmin = false; 
+    _returnPath = null;
+    print('🚪 [AUTH] User logged out. Admin status reset.');
   }
 
-  // 1. Kirim link reset password ke email
+  // ✅ 8. RESET PASSWORD
   static Future<void> resetPassword(String email) async {
     await _client.auth.resetPasswordForEmail(
       email,
-      // PENTING: Ini adalah URL yang akan dibuka user setelah klik link di email
-      redirectTo: 'https://mulia-bali-demo.web.app/reset-password',
+      redirectTo: 'https://mulia-bali-demo.web.app/reset-password', 
     );
   }
 
-  // 2. Update password baru
+  // ✅ 9. UPDATE PASSWORD
   static Future<void> updatePassword(String newPassword) async {
     await _client.auth.updateUser(UserAttributes(password: newPassword));
   }

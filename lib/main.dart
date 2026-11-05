@@ -32,8 +32,7 @@ import 'features/auth/register_screen.dart';
 import 'features/auth/forgot_password_screen.dart';
 import 'features/auth/reset_password_screen.dart';
 
-// --- ADMIN ROUTES ---
-import 'features/admin/admin_login_screen.dart';
+// --- ADMIN ROUTES (PASTIKAN IMPORT INI ADA) ---
 import 'features/admin/admin_dashboard_screen.dart';
 import 'features/admin/admin_properties_screen.dart';
 import 'features/admin/admin_rooms_screen.dart';
@@ -65,13 +64,19 @@ const String supabaseUrl = 'https://qitxjhavagqhfnkmmiyw.supabase.co';
 const String supabaseAnonKey = 'sb_publishable_Xmw5kGeXzCLMQG871sRQPA_B72M137t';
 
 // ✅ GLOBAL ROUTE OBSERVER
-final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 
 void main() async {
+  // 1. Wajib ada di paling atas
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Load environment variables
-  await dotenv.load(fileName: ".env");
+  // 2. Load .env dengan aman (Mencegah crash jika file .env hilang/bermasalah)
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    print('⚠️ [MAIN] Gagal memuat .env, melanjutkan tanpa env: $e');
+  }
 
   final uri = Uri.base;
   final isPasswordRecovery =
@@ -79,20 +84,22 @@ void main() async {
       uri.fragment.contains('type=recovery') ||
       uri.fragment.contains('access_token');
 
-  print('🔍 [MAIN] URL: $uri');
-  print('🔍 [MAIN] Is Recovery? $isPasswordRecovery');
-
+  // 3. Inisialisasi Supabase
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
-  // ✅ Inisialisasi role admin SEBELUM router dibuat
-  await AuthService.initialize();
+  // 4. Inisialisasi AuthService dengan AMAN (Mencegah crash fatal saat startup)
+  try {
+    await AuthService.initialize();
+  } catch (e) {
+    print('⚠️ [MAIN] AuthService.initialize gagal, aplikasi tetap berjalan sebagai Guest: $e');
+  }
 
+  // 5. Jalankan Aplikasi
   runApp(MyApp(isPasswordRecovery: isPasswordRecovery));
 }
 
 class MyApp extends StatelessWidget {
   final bool isPasswordRecovery;
-
   const MyApp({super.key, required this.isPasswordRecovery});
 
   @override
@@ -118,130 +125,173 @@ GoRouter _createRouter(bool isPasswordRecovery) {
     redirect: (context, state) {
       final path = state.uri.path;
       final isLoggedIn = AuthService.isLoggedIn;
-      final isAdmin = AuthService.isAdmin;
 
-      // 1. PRIORITAS MUTLAK: Biarkan /reset-password lewat
+      bool isAdmin = false;
+      try {
+        isAdmin = AuthService.isAdmin;
+      } catch (e) {
+        isAdmin = false;
+      }
+
+      // 1. Biarkan reset password lewat
       if (path == '/reset-password') return null;
 
-      // 2. Jika BELUM login sama sekali
+      // 2. Jika BELUM login
       if (!isLoggedIn) {
-        if (path.startsWith('/admin')) return '/admin-login';
+        if (path.startsWith('/admin')) return '/login';
 
-        // Izinkan halaman publik user
         if (path == '/' ||
             path == '/login' ||
             path == '/register' ||
             path == '/forgot-password' ||
-            path == '/properties' ||
-            path == '/offers' ||
-            path == '/spa' ||
-            path.startsWith('/spa/') ||
-            path == '/wedding' ||
-            path.startsWith('/wedding/') ||
             path == '/cart' ||
-            path.startsWith('/property/') ||
-            path.startsWith('/restaurant/')) {
+            path.startsWith('/property') ||
+            path.startsWith('/spa') ||
+            path.startsWith('/wedding') ||
+            path.startsWith('/restaurant')) {
           return null;
         }
-        return '/login'; // Paksa login jika mencoba akses halaman privat user
+        return '/login';
       }
 
-      // 3. Jika SUDAH login (Sesi dipulihkan atau baru saja login)
+      // 3. Jika SUDAH login
       if (isLoggedIn) {
-        // ✅ PERBAIKAN: HAPUS paksaan redirect admin ke dashboard. 
-        // Biarkan admin masuk ke halaman user biasa (/) seperti user lainnya.
-        // Admin bisa masuk ke dashboard secara manual lewat menu di aplikasi.
-
-        // ✅ Jika sudah login, jangan biarkan membuka halaman login/register/admin-login lagi
+        // ✅ ANTI-LOOP: Cegah user yang sudah login membuka halaman login lagi
         if (path == '/login' ||
             path == '/register' ||
-            path == '/forgot-password' ||
-            path == '/admin-login') {
-          return '/'; // SELALU arahkan ke halaman utama user
+            path == '/forgot-password') {
+          final target = isAdmin ? '/admin/dashboard' : '/';
+          // PENTING: Hanya redirect jika path saat ini BUKAN targetnya
+          if (path != target) return target;
         }
 
-        // ✅ Jika User biasa mencoba membuka halaman Admin, lempar ke User Dashboard
+        // ✅ ANTI-LOOP: Cegah user BIASA masuk ke area admin
         if (!isAdmin && path.startsWith('/admin')) {
-          return '/';
+          if (path != '/') return '/';
+        }
+
+        // ✅ ANTI-LOOP: Jika Admin membuka halaman utama, arahkan ke Dashboard
+        if (isAdmin && path == '/') {
+          if (path != '/admin/dashboard') return '/admin/dashboard';
         }
       }
 
-      // 4. Izinkan akses normal untuk rute lainnya
+      // 4. Izinkan akses normal
       return null;
     },
 
     routes: [
       // --- AUTH ROUTES ---
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-      GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
-      GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
       GoRoute(
         path: '/reset-password',
-        builder: (context, state) {
-          print('🟢 [SUCCESS] ResetPasswordScreen BUILDING!');
-          return const ResetPasswordScreen();
-        },
+        builder: (context, state) => const ResetPasswordScreen(),
       ),
-      GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
 
       // --- USER APP ROUTES ---
       GoRoute(path: '/', builder: (context, state) => const MainShell()),
-      GoRoute(path: '/properties', builder: (context, state) => const PropertiesScreen()),
+      GoRoute(
+        path: '/properties',
+        builder: (context, state) => const PropertiesScreen(),
+      ),
       GoRoute(
         path: '/property/:id',
-        builder: (context, state) => PropertyDetailScreen(propertyId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            PropertyDetailScreen(propertyId: state.pathParameters['id']!),
       ),
-      GoRoute(path: '/offers', builder: (context, state) => const OffersScreen()),
+      GoRoute(
+        path: '/offers',
+        builder: (context, state) => const OffersScreen(),
+      ),
       GoRoute(path: '/spa', builder: (context, state) => const SpaScreen()),
       GoRoute(
         path: '/spa/:id',
-        builder: (context, state) => SpaDetailScreen(serviceId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            SpaDetailScreen(serviceId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/restaurant/:id',
-        builder: (context, state) => DiningDetailScreen(restaurantId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            DiningDetailScreen(restaurantId: state.pathParameters['id']!),
       ),
-      GoRoute(path: '/wedding', builder: (context, state) => const WeddingScreen()),
+      GoRoute(
+        path: '/wedding',
+        builder: (context, state) => const WeddingScreen(),
+      ),
       GoRoute(
         path: '/wedding/:id',
-        builder: (context, state) => WeddingDetailScreen(packageId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            WeddingDetailScreen(packageId: state.pathParameters['id']!),
       ),
-      GoRoute(path: '/reservation', builder: (context, state) => const ReservationScreen()),
-      GoRoute(path: '/my-reservations', builder: (context, state) => const MyReservationsScreen()),
+      GoRoute(
+        path: '/reservation',
+        builder: (context, state) => const ReservationScreen(),
+      ),
+      GoRoute(
+        path: '/my-reservations',
+        builder: (context, state) => const MyReservationsScreen(),
+      ),
       GoRoute(
         path: '/reservation-detail/:id',
-        builder: (context, state) => ReservationDetailScreen(reservationId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            ReservationDetailScreen(reservationId: state.pathParameters['id']!),
       ),
-      GoRoute(path: '/my-favorites', builder: (context, state) => const MyFavoritesScreen()),
+      GoRoute(
+        path: '/my-favorites',
+        builder: (context, state) => const MyFavoritesScreen(),
+      ),
       GoRoute(path: '/cart', builder: (context, state) => const CartScreen()),
       GoRoute(
         path: '/booking-confirmation',
-        builder: (context, state) => BookingConfirmationScreen(order: state.extra as Order),
+        builder: (context, state) =>
+            BookingConfirmationScreen(order: state.extra as Order),
       ),
-      GoRoute(path: '/my-bookings', builder: (context, state) => const MyBookingsScreen()),
+      GoRoute(
+        path: '/my-bookings',
+        builder: (context, state) => const MyBookingsScreen(),
+      ),
       GoRoute(
         path: '/booking-detail/:id',
-        builder: (context, state) => OrderDetailScreen(orderId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            OrderDetailScreen(orderId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/reservation-form',
-        builder: (context, state) => ReservationFormScreen(bookingData: state.extra as Map<String, dynamic>),
+        builder: (context, state) => ReservationFormScreen(
+          bookingData: state.extra as Map<String, dynamic>,
+        ),
       ),
       GoRoute(
         path: '/payment-instruction/:id',
-        builder: (context, state) => PaymentInstructionScreen(reservationId: state.pathParameters['id']!),
+        builder: (context, state) => PaymentInstructionScreen(
+          reservationId: state.pathParameters['id']!,
+        ),
       ),
 
-      // --- ADMIN ROUTES ---
-      GoRoute(path: '/admin-login', builder: (context, state) => const AdminLoginScreen()),
+      // --- ADMIN ROUTES (PASTIKAN BAGIAN INI ADA) ---
       GoRoute(
-        path: '/admin/dashboard',
+        path: '/admin/dashboard', // ✅ INI KUNCINYA
         builder: (context, state) {
-          if (!AuthService.isAdmin) return const AdminLoginScreen();
+          if (!AuthService.isAdmin) return const LoginScreen(); // Fallback aman
           return const AdminDashboardScreen();
         },
       ),
-      GoRoute(path: '/admin/properties', builder: (context, state) => const AdminPropertiesScreen()),
+      GoRoute(
+        path: '/admin/properties',
+        builder: (context, state) => const AdminPropertiesScreen(),
+      ),
       GoRoute(
         path: '/admin/rooms',
         builder: (context, state) => AdminRoomsScreen(
@@ -249,38 +299,82 @@ GoRouter _createRouter(bool isPasswordRecovery) {
           propertyName: state.uri.queryParameters['propertyName'] ?? 'Property',
         ),
       ),
-      GoRoute(path: '/admin/spa', builder: (context, state) => const AdminSpaScreen()),
-      GoRoute(path: '/admin/restaurants', builder: (context, state) => const AdminRestaurantsScreen()),
+      GoRoute(
+        path: '/admin/spa',
+        builder: (context, state) => const AdminSpaScreen(),
+      ),
+      GoRoute(
+        path: '/admin/restaurants',
+        builder: (context, state) => const AdminRestaurantsScreen(),
+      ),
       GoRoute(
         path: '/admin/menu-items',
         builder: (context, state) => AdminMenuItemsScreen(
           restaurantId: state.uri.queryParameters['restaurantId'] ?? '',
-          restaurantName: state.uri.queryParameters['restaurantName'] ?? 'Restaurant',
+          restaurantName:
+              state.uri.queryParameters['restaurantName'] ?? 'Restaurant',
         ),
       ),
-      GoRoute(path: '/admin/hero-slides', builder: (context, state) => const AdminHeroSlidesScreen()),
-      GoRoute(path: '/admin/special-offers', builder: (context, state) => const AdminSpecialOffersScreen()),
-      GoRoute(path: '/admin/experiences', builder: (context, state) => const AdminExperiencesScreen()),
-      GoRoute(path: '/admin/weddings', builder: (context, state) => const AdminWeddingsScreen()),
-      GoRoute(path: '/admin/bookings', builder: (context, state) => const AdminBookingsScreen()),
+      GoRoute(
+        path: '/admin/hero-slides',
+        builder: (context, state) => const AdminHeroSlidesScreen(),
+      ),
+      GoRoute(
+        path: '/admin/special-offers',
+        builder: (context, state) => const AdminSpecialOffersScreen(),
+      ),
+      GoRoute(
+        path: '/admin/experiences',
+        builder: (context, state) => const AdminExperiencesScreen(),
+      ),
+      GoRoute(
+        path: '/admin/weddings',
+        builder: (context, state) => const AdminWeddingsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/bookings',
+        builder: (context, state) => const AdminBookingsScreen(),
+      ),
       GoRoute(
         path: '/admin/booking-detail/:id',
-        builder: (context, state) => AdminBookingDetailScreen(orderId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            AdminBookingDetailScreen(orderId: state.pathParameters['id']!),
       ),
-      GoRoute(path: '/admin/reservations', builder: (context, state) => const AdminReservationsScreen()),
+      GoRoute(
+        path: '/admin/reservations',
+        builder: (context, state) => const AdminReservationsScreen(),
+      ),
       GoRoute(
         path: '/admin/reservation-detail/:id',
-        builder: (context, state) => AdminReservationDetailScreen(reservationId: state.pathParameters['id']!),
+        builder: (context, state) => AdminReservationDetailScreen(
+          reservationId: state.pathParameters['id']!,
+        ),
       ),
-      GoRoute(path: '/admin/promotions', builder: (context, state) => const AdminPromotionsScreen()),
-      GoRoute(path: '/admin/payment-verification', builder: (context, state) => const AdminPaymentVerificationScreen()),
-      GoRoute(path: '/admin/rewards', builder: (context, state) => const AdminRewardsScreen()),
+      GoRoute(
+        path: '/admin/promotions',
+        builder: (context, state) => const AdminPromotionsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/payment-verification',
+        builder: (context, state) => const AdminPaymentVerificationScreen(),
+      ),
+      GoRoute(
+        path: '/admin/rewards',
+        builder: (context, state) => const AdminRewardsScreen(),
+      ),
       GoRoute(
         path: '/admin/add-reward',
-        builder: (context, state) => AdminAddRewardScreen(rewardToEdit: state.extra as Reward?),
+        builder: (context, state) =>
+            AdminAddRewardScreen(rewardToEdit: state.extra as Reward?),
       ),
-      GoRoute(path: '/admin/redemptions', builder: (context, state) => const AdminRedemptionsScreen()),
-      GoRoute(path: '/admin/reviews', builder: (context, state) => const AdminReviewsScreen()),
+      GoRoute(
+        path: '/admin/redemptions',
+        builder: (context, state) => const AdminRedemptionsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/reviews',
+        builder: (context, state) => const AdminReviewsScreen(),
+      ),
     ],
   );
 }

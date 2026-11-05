@@ -54,8 +54,12 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     });
 
     try {
-      final dbProperty = await PropertyService.getPropertyById(widget.propertyId);
-      final dbRooms = await PropertyService.getRoomsByPropertyId(widget.propertyId);
+      final dbProperty = await PropertyService.getPropertyById(
+        widget.propertyId,
+      );
+      final dbRooms = await PropertyService.getRoomsByPropertyId(
+        widget.propertyId,
+      );
 
       if (mounted) {
         if (dbProperty != null && dbRooms.isNotEmpty) {
@@ -80,7 +84,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               highlights: [],
               isActive: true,
             );
-            _rooms = []; 
+            _rooms = [];
             _isLoading = false;
           });
         }
@@ -98,11 +102,14 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   // ✅ 1. Method untuk Mengambil Data Review
   Future<void> _fetchReviews() async {
     setState(() => _isLoadingReviews = true);
-    
-    // ✅ Gunakan widget.propertyId sebagai target review properti
-    final targetId = widget.propertyId; 
 
-    final avgRating = await ReviewService.getAverageRating('property', targetId);
+    // ✅ Gunakan widget.propertyId sebagai target review properti
+    final targetId = widget.propertyId;
+
+    final avgRating = await ReviewService.getAverageRating(
+      'property',
+      targetId,
+    );
     final reviews = await ReviewService.getReviews('property', targetId);
 
     if (mounted) {
@@ -122,7 +129,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       children: [
         const Divider(),
         const SizedBox(height: 24),
-        
+
         const Text(
           'Guest Reviews',
           style: TextStyle(
@@ -136,11 +143,12 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
         // Loading State
         if (_isLoadingReviews)
-          const Center(child: Padding(
-            padding: EdgeInsets.all(20),
-            child: CircularProgressIndicator(color: AppColors.primaryGold),
-          ))
-        
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(color: AppColors.primaryGold),
+            ),
+          )
         // Empty State
         else if (_reviews.isEmpty)
           Container(
@@ -153,17 +161,23 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
             ),
             child: const Column(
               children: [
-                Icon(Icons.rate_review_outlined, size: 40, color: AppColors.textGrey),
+                Icon(
+                  Icons.rate_review_outlined,
+                  size: 40,
+                  color: AppColors.textGrey,
+                ),
                 SizedBox(height: 12),
                 Text(
                   'No reviews yet. Be the first to share your stay experience!',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    color: AppColors.textGrey,
+                  ),
                 ),
               ],
             ),
           )
-        
         // List Reviews
         else ...[
           // Rating Summary Card
@@ -191,7 +205,9 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     Row(
                       children: List.generate(5, (index) {
                         return Icon(
-                          index < _averageRating.round() ? Icons.star : Icons.star_border,
+                          index < _averageRating.round()
+                              ? Icons.star
+                              : Icons.star_border,
                           color: AppColors.primaryGold,
                           size: 16,
                         );
@@ -200,7 +216,11 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Based on $_totalReviews reviews',
-                      style: const TextStyle(fontFamily: 'Lato', fontSize: 12, color: AppColors.textGrey),
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 12,
+                        color: AppColors.textGrey,
+                      ),
                     ),
                   ],
                 ),
@@ -222,7 +242,12 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5)],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 5,
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,7 +259,10 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         backgroundColor: AppColors.primaryGold.withOpacity(0.2),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'G',
-                          style: const TextStyle(color: AppColors.primaryGold, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: AppColors.primaryGold,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -244,11 +272,19 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                           children: [
                             Text(
                               userName,
-                              style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             Text(
                               DateFormat('dd MMM yyyy').format(date),
-                              style: const TextStyle(fontFamily: 'Lato', fontSize: 11, color: AppColors.textGrey),
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 11,
+                                color: AppColors.textGrey,
+                              ),
                             ),
                           ],
                         ),
@@ -270,7 +306,64 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     const SizedBox(height: 12),
                     Text(
                       comment,
-                      style: const TextStyle(fontFamily: 'Lato', fontSize: 13, color: AppColors.darkCharcoal, height: 1.5),
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 13,
+                        color: AppColors.darkCharcoal,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                  // ✅ BARU: TAMPILKAN BALASAN ADMIN JIKA ADA
+                  if (review['admin_reply'] != null &&
+                      review['admin_reply'].toString().isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGold.withOpacity(
+                          0.08,
+                        ), // Background sangat muda
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.primaryGold.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.verified_user,
+                                size: 16,
+                                color: AppColors.primaryGold,
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Management Response',
+                                style: TextStyle(
+                                  fontFamily: 'Lato',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkCharcoal,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            review['admin_reply'],
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 13,
+                              color: AppColors.darkCharcoal,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -304,7 +397,9 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           return Container(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -321,18 +416,40 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                       Expanded(
                         child: Text(
                           _selectedRoom!.name,
-                          style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                          style: const TextStyle(
+                            fontFamily: 'Playfair Display',
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkCharcoal,
+                          ),
                           maxLines: 2,
                         ),
                       ),
-                      IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => context.pop(),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text('IDR ${_formatPrice(_selectedRoom!.pricePerNight)} / night', style: const TextStyle(fontFamily: 'Lato', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryGold)),
+                  Text(
+                    'IDR ${_formatPrice(_selectedRoom!.pricePerNight)} / night',
+                    style: const TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryGold,
+                    ),
+                  ),
                   const SizedBox(height: 24),
 
-                  const Text('Select Dates', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Lato')),
+                  const Text(
+                    'Select Dates',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: () async {
@@ -340,10 +457,17 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         context: context,
                         firstDate: DateTime.now(),
                         lastDate: DateTime.now().add(const Duration(days: 365)),
-                        initialDateRange: _checkIn != null && _checkOut != null ? DateTimeRange(start: _checkIn!, end: _checkOut!) : null,
+                        initialDateRange: _checkIn != null && _checkOut != null
+                            ? DateTimeRange(start: _checkIn!, end: _checkOut!)
+                            : null,
                         builder: (context, child) {
                           return Theme(
-                            data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGold, onPrimary: Colors.white)),
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.light(
+                                primary: AppColors.primaryGold,
+                                onPrimary: Colors.white,
+                              ),
+                            ),
                             child: child!,
                           );
                         },
@@ -359,17 +483,30 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     },
                     child: Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(border: Border.all(color: AppColors.textGrey.withOpacity(0.3)), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: AppColors.textGrey.withOpacity(0.3),
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, color: AppColors.primaryGold),
+                          const Icon(
+                            Icons.calendar_today,
+                            color: AppColors.primaryGold,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               _checkIn != null && _checkOut != null
                                   ? '${DateFormat('dd MMM').format(_checkIn!)} - ${DateFormat('dd MMM yyyy').format(_checkOut!)}'
                                   : 'Tap to select check-in & check-out',
-                              style: TextStyle(color: _checkIn != null ? AppColors.darkCharcoal : AppColors.textGrey, fontFamily: 'Lato'),
+                              style: TextStyle(
+                                color: _checkIn != null
+                                    ? AppColors.darkCharcoal
+                                    : AppColors.textGrey,
+                                fontFamily: 'Lato',
+                              ),
                             ),
                           ),
                         ],
@@ -378,11 +515,27 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  const Text('Guests & Rooms', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Lato')),
+                  const Text(
+                    'Guests & Rooms',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  _buildCounterRow('Adults', _adults, (val) => setModalState(() => _adults = val), min: 1),
+                  _buildCounterRow(
+                    'Adults',
+                    _adults,
+                    (val) => setModalState(() => _adults = val),
+                    min: 1,
+                  ),
                   const SizedBox(height: 12),
-                  _buildCounterRow('Children', _children, (val) => setModalState(() => _children = val), min: 0),
+                  _buildCounterRow(
+                    'Children',
+                    _children,
+                    (val) => setModalState(() => _children = val),
+                    min: 0,
+                  ),
                   const SizedBox(height: 12),
                   _buildCounterRow('Rooms', _roomCount, (val) {
                     setModalState(() => _roomCount = val);
@@ -392,22 +545,43 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                   const SizedBox(height: 24),
 
                   if (_isCheckingAvailability)
-                    const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+                    const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryGold,
+                      ),
+                    )
                   else if (_availableRooms != null)
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: _availableRooms! > 0 ? Colors.green.shade50 : Colors.red.shade50,
+                        color: _availableRooms! > 0
+                            ? Colors.green.shade50
+                            : Colors.red.shade50,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          Icon(_availableRooms! > 0 ? Icons.check_circle : Icons.error, color: _availableRooms! > 0 ? Colors.green : Colors.red),
+                          Icon(
+                            _availableRooms! > 0
+                                ? Icons.check_circle
+                                : Icons.error,
+                            color: _availableRooms! > 0
+                                ? Colors.green
+                                : Colors.red,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _availableRooms! > 0 ? 'Available! ($_availableRooms rooms left)' : 'Fully booked for these dates.',
-                              style: TextStyle(color: _availableRooms! > 0 ? Colors.green.shade800 : Colors.red.shade800, fontWeight: FontWeight.bold, fontFamily: 'Lato'),
+                              _availableRooms! > 0
+                                  ? 'Available! ($_availableRooms rooms left)'
+                                  : 'Fully booked for these dates.',
+                              style: TextStyle(
+                                color: _availableRooms! > 0
+                                    ? Colors.green.shade800
+                                    : Colors.red.shade800,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Lato',
+                              ),
                             ),
                           ),
                         ],
@@ -416,7 +590,10 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  if (_checkIn != null && _checkOut != null && _availableRooms != null && _availableRooms! > 0) ...[
+                  if (_checkIn != null &&
+                      _checkOut != null &&
+                      _availableRooms != null &&
+                      _availableRooms! > 0) ...[
                     const Divider(),
                     const SizedBox(height: 16),
                     Row(
@@ -425,8 +602,22 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Total Price', style: TextStyle(color: AppColors.textGrey, fontFamily: 'Lato')),
-                            Text('IDR ${_formatPrice(_calculateTotal())}', style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                            const Text(
+                              'Total Price',
+                              style: TextStyle(
+                                color: AppColors.textGrey,
+                                fontFamily: 'Lato',
+                              ),
+                            ),
+                            Text(
+                              'IDR ${_formatPrice(_calculateTotal())}',
+                              style: const TextStyle(
+                                fontFamily: 'Playfair Display',
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkCharcoal,
+                              ),
+                            ),
                           ],
                         ),
                         ElevatedButton(
@@ -437,10 +628,22 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.darkCharcoal,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                          child: const Text('BOOK NOW', style: TextStyle(fontFamily: 'Lato', fontWeight: FontWeight.bold, letterSpacing: 1)),
+                          child: const Text(
+                            'BOOK NOW',
+                            style: TextStyle(
+                              fontFamily: 'Lato',
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -455,16 +658,43 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     );
   }
 
-  Widget _buildCounterRow(String label, int value, Function(int) onChanged, {int min = 0}) {
+  Widget _buildCounterRow(
+    String label,
+    int value,
+    Function(int) onChanged, {
+    int min = 0,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontFamily: 'Lato', color: AppColors.textGrey)),
+        Text(
+          label,
+          style: const TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+        ),
         Row(
           children: [
-            IconButton(icon: const Icon(Icons.remove_circle_outline), color: value <= min ? Colors.grey : AppColors.darkCharcoal, onPressed: value <= min ? null : () => onChanged(value - 1)),
-            SizedBox(width: 40, child: Text('$value', textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Lato', fontSize: 16, fontWeight: FontWeight.bold))),
-            IconButton(icon: const Icon(Icons.add_circle_outline), color: AppColors.darkCharcoal, onPressed: () => onChanged(value + 1)),
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline),
+              color: value <= min ? Colors.grey : AppColors.darkCharcoal,
+              onPressed: value <= min ? null : () => onChanged(value - 1),
+            ),
+            SizedBox(
+              width: 40,
+              child: Text(
+                '$value',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Lato',
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline),
+              color: AppColors.darkCharcoal,
+              onPressed: () => onChanged(value + 1),
+            ),
           ],
         ),
       ],
@@ -474,7 +704,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   Future<void> _checkAvailability(StateSetter setModalState) async {
     if (_checkIn == null || _checkOut == null || _selectedRoom == null) return;
     setModalState(() => _isCheckingAvailability = true);
-    
+
     final available = await ReservationService.checkAvailability(
       roomId: _selectedRoom!.id,
       checkIn: _checkIn!,
@@ -489,7 +719,8 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   }
 
   int _calculateTotal() {
-    if (_checkIn == null || _checkOut == null || _selectedRoom == null) return 0;
+    if (_checkIn == null || _checkOut == null || _selectedRoom == null)
+      return 0;
     final nights = _checkOut!.difference(_checkIn!).inDays;
     return _selectedRoom!.pricePerNight * nights * _roomCount;
   }
@@ -501,19 +732,22 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       return;
     }
 
-    context.push('/reservation-form', extra: {
-      'propertyId': widget.propertyId,
-      'roomId': _selectedRoom!.id,
-      'roomName': _selectedRoom!.name,
-      'roomImageUrl': _selectedRoom!.imageUrl,
-      'checkIn': _checkIn,
-      'checkOut': _checkOut,
-      'pricePerNight': _selectedRoom!.pricePerNight,
-      'roomCount': _roomCount,
-      'adults': _adults,
-      'children': _children,
-      'totalAmount': _calculateTotal(),
-    });
+    context.push(
+      '/reservation-form',
+      extra: {
+        'propertyId': widget.propertyId,
+        'roomId': _selectedRoom!.id,
+        'roomName': _selectedRoom!.name,
+        'roomImageUrl': _selectedRoom!.imageUrl,
+        'checkIn': _checkIn,
+        'checkOut': _checkOut,
+        'pricePerNight': _selectedRoom!.pricePerNight,
+        'roomCount': _roomCount,
+        'adults': _adults,
+        'children': _children,
+        'totalAmount': _calculateTotal(),
+      },
+    );
   }
 
   @override
@@ -521,7 +755,9 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: AppColors.offWhite,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryGold)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGold),
+        ),
       );
     }
 
@@ -535,9 +771,18 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
             children: [
               const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
-              Text(_errorMessage ?? 'Property not found', style: const TextStyle(fontFamily: 'Lato', color: AppColors.textGrey)),
+              Text(
+                _errorMessage ?? 'Property not found',
+                style: const TextStyle(
+                  fontFamily: 'Lato',
+                  color: AppColors.textGrey,
+                ),
+              ),
               const SizedBox(height: 24),
-              ElevatedButton(onPressed: () => context.pop(), child: const Text('Go Back')),
+              ElevatedButton(
+                onPressed: () => context.pop(),
+                child: const Text('Go Back'),
+              ),
             ],
           ),
         ),
@@ -558,14 +803,18 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                   Image.network(
                     _property!.coverImage ?? 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80',
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(color: AppColors.darkCharcoal),
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: AppColors.darkCharcoal),
                   ),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
                       ),
                     ),
                   ),
@@ -583,37 +832,102 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_property!.name.toUpperCase(), style: const TextStyle(color: AppColors.primaryGold, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  Text(
+                    _property!.name.toUpperCase(),
+                    style: const TextStyle(
+                      color: AppColors.primaryGold,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text(_property!.tagline ?? '', style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                  Text(
+                    _property!.tagline ?? '',
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, size: 16, color: AppColors.textGrey),
+                      const Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: AppColors.textGrey,
+                      ),
                       const SizedBox(width: 4),
-                      Text(_property!.location ?? 'Bali, Indonesia', style: const TextStyle(color: AppColors.textGrey, fontSize: 14)),
+                      Text(
+                        _property!.location ?? 'Bali, Indonesia',
+                        style: const TextStyle(
+                          color: AppColors.textGrey,
+                          fontSize: 14,
+                        ),
+                      ),
                       const Spacer(),
-                      ...List.generate(_property!.starRating, (index) => const Icon(Icons.star, size: 16, color: AppColors.primaryGold)),
+                      ...List.generate(
+                        _property!.starRating,
+                        (index) => const Icon(
+                          Icons.star,
+                          size: 16,
+                          color: AppColors.primaryGold,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
                   const Divider(),
                   const SizedBox(height: 24),
-                  
+
                   // ✅ Bagian About Property
-                  const Text('About', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                  const Text(
+                    'About',
+                    style: TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
                   const SizedBox(height: 12),
-                  Text(_property!.description ?? 'No description available.', style: const TextStyle(fontFamily: 'Lato', fontSize: 15, color: AppColors.textGrey, height: 1.6)),
+                  Text(
+                    _property!.description ?? 'No description available.',
+                    style: const TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 15,
+                      color: AppColors.textGrey,
+                      height: 1.6,
+                    ),
+                  ),
                   const SizedBox(height: 32),
-                  
+
                   // ✅ Bagian Available Rooms
-                  const Text('Available Rooms', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                  const Text(
+                    'Available Rooms',
+                    style: TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   if (_rooms.isEmpty)
-                    const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text('No rooms currently available.', style: TextStyle(color: AppColors.textGrey))))
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Text(
+                          'No rooms currently available.',
+                          style: TextStyle(color: AppColors.textGrey),
+                        ),
+                      ),
+                    )
                   else
                     ..._rooms.map((room) => _buildRoomCard(room)).toList(),
-                  
+
                   const SizedBox(height: 32),
 
                   // ✅ 3. TAMBAHKAN BAGIAN REVIEW DI SINI (Setelah daftar kamar)
@@ -644,7 +958,11 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               height: 180,
               width: double.infinity,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(height: 180, color: AppColors.offWhite, child: const Icon(Icons.image_not_supported)),
+              errorBuilder: (_, __, ___) => Container(
+                height: 180,
+                color: AppColors.offWhite,
+                child: const Icon(Icons.image_not_supported),
+              ),
             ),
           ),
           Padding(
@@ -652,20 +970,48 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(room.name, style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                Text(
+                  room.name,
+                  style: const TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     if (room.bedType != null) ...[
-                      const Icon(Icons.king_bed_outlined, size: 16, color: AppColors.textGrey),
+                      const Icon(
+                        Icons.king_bed_outlined,
+                        size: 16,
+                        color: AppColors.textGrey,
+                      ),
                       const SizedBox(width: 4),
-                      Text(room.bedType!, style: const TextStyle(fontSize: 13, color: AppColors.textGrey)),
+                      Text(
+                        room.bedType!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
                       const SizedBox(width: 12),
                     ],
                     if (room.sizeSqm != null) ...[
-                      const Icon(Icons.square_foot_outlined, size: 16, color: AppColors.textGrey),
+                      const Icon(
+                        Icons.square_foot_outlined,
+                        size: 16,
+                        color: AppColors.textGrey,
+                      ),
                       const SizedBox(width: 4),
-                      Text('${room.sizeSqm} sqm', style: const TextStyle(fontSize: 13, color: AppColors.textGrey)),
+                      Text(
+                        '${room.sizeSqm} sqm',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -678,8 +1024,22 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Starting from', style: TextStyle(fontSize: 11, color: AppColors.textGrey)),
-                        Text('IDR ${_formatPrice(room.pricePerNight)}', style: const TextStyle(fontFamily: 'Lato', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryGold)),
+                        const Text(
+                          'Starting from',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textGrey,
+                          ),
+                        ),
+                        Text(
+                          'IDR ${_formatPrice(room.pricePerNight)}',
+                          style: const TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryGold,
+                          ),
+                        ),
                       ],
                     ),
                     ElevatedButton(
@@ -687,9 +1047,14 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.darkCharcoal,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                       ),
-                      child: const Text('Select & Book', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Select & Book',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
                 ),

@@ -50,8 +50,11 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
 
   Future<void> _fetchReviews() async {
     setState(() => _isLoadingReviews = true);
-    
-    final avgRating = await ReviewService.getAverageRating('spa', widget.serviceId);
+
+    final avgRating = await ReviewService.getAverageRating(
+      'spa',
+      widget.serviceId,
+    );
     final reviews = await ReviewService.getReviews('spa', widget.serviceId);
 
     if (mounted) {
@@ -85,7 +88,6 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
       ),
     );
   }
-
 
   Future<void> _fetchService() async {
     try {
@@ -121,19 +123,24 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
   Future<void> _toggleFavorite() async {
     // 1. Simpan state lama untuk rollback jika gagal
     final previousState = _isFavorite;
-    
+
     // 2. Update UI segera (Optimistic Update)
     setState(() => _isFavorite = !_isFavorite);
 
     try {
       // 3. Kirim ke database
-      final newStatus = await FavoriteService.toggleFavorite('spa', widget.serviceId);
+      final newStatus = await FavoriteService.toggleFavorite(
+        'spa',
+        widget.serviceId,
+      );
       // Ganti 'spa' dengan 'dining' jika di dining_detail_screen.dart
       // Ganti widget.serviceId dengan widget.restaurantId jika di dining
 
       // 4. Jika status di database TIDAK sesuai dengan UI, sinkronkan
       if (mounted && newStatus != _isFavorite) {
-        print('⚠️ [UI] Status mismatch. Database: $newStatus | UI: $_isFavorite');
+        print(
+          '⚠️ [UI] Status mismatch. Database: $newStatus | UI: $_isFavorite',
+        );
         setState(() => _isFavorite = newStatus);
       }
 
@@ -141,13 +148,14 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isFavorite ? 'Added to favorites ❤️' : 'Removed from favorites'),
+            content: Text(
+              _isFavorite ? 'Added to favorites ❤️' : 'Removed from favorites',
+            ),
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
           ),
         );
       }
-      
     } catch (e) {
       // 6. Jika error, kembalikan ke state sebelumnya
       print('❌ [UI] Toggle failed: $e');
@@ -584,7 +592,7 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                   const SizedBox(height: 24),
 
                   // ✅ TAMBAHKAN BAGIAN REVIEW DI SINI
-                  _buildReviewsSection(), 
+                  _buildReviewsSection(),
 
                   const SizedBox(height: 100),
                 ],
@@ -671,7 +679,7 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
       children: [
         const Divider(),
         const SizedBox(height: 24),
-        
+
         // Header: Judul + Tombol Write Review
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -688,7 +696,9 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
               onPressed: _showWriteReviewModal,
               icon: const Icon(Icons.rate_review, size: 18),
               label: const Text('Write a Review'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.primaryGold),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryGold,
+              ),
             ),
           ],
         ),
@@ -696,11 +706,12 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
 
         // Loading State
         if (_isLoadingReviews)
-          const Center(child: Padding(
-            padding: EdgeInsets.all(20),
-            child: CircularProgressIndicator(color: AppColors.primaryGold),
-          ))
-        
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(color: AppColors.primaryGold),
+            ),
+          )
         // Empty State
         else if (_reviews.isEmpty)
           Container(
@@ -713,17 +724,23 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
             ),
             child: const Column(
               children: [
-                Icon(Icons.rate_review_outlined, size: 40, color: AppColors.textGrey),
+                Icon(
+                  Icons.rate_review_outlined,
+                  size: 40,
+                  color: AppColors.textGrey,
+                ),
                 SizedBox(height: 12),
                 Text(
                   'No reviews yet. Be the first to share your experience!',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    color: AppColors.textGrey,
+                  ),
                 ),
               ],
             ),
           )
-        
         // List Reviews
         else ...[
           // Rating Summary
@@ -751,7 +768,9 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                     Row(
                       children: List.generate(5, (index) {
                         return Icon(
-                          index < _averageRating.round() ? Icons.star : Icons.star_border,
+                          index < _averageRating.round()
+                              ? Icons.star
+                              : Icons.star_border,
                           color: AppColors.primaryGold,
                           size: 16,
                         );
@@ -760,7 +779,11 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Based on $_totalReviews reviews',
-                      style: const TextStyle(fontFamily: 'Lato', fontSize: 12, color: AppColors.textGrey),
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 12,
+                        color: AppColors.textGrey,
+                      ),
                     ),
                   ],
                 ),
@@ -773,7 +796,7 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
           ..._reviews.map((review) {
             // ✅ PERBAIKAN: Baca langsung dari field 'user_name' yang sudah kita gabungkan
             final userName = review['user_name'] ?? 'Valued Guest';
-            
+
             final comment = review['comment'] ?? '';
             final rating = review['rating'] as int;
             final date = DateTime.parse(review['created_at']);
@@ -784,7 +807,12 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5)],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 5,
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -796,7 +824,10 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                         backgroundColor: AppColors.primaryGold.withOpacity(0.2),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'G',
-                          style: const TextStyle(color: AppColors.primaryGold, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: AppColors.primaryGold,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -806,11 +837,19 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                           children: [
                             Text(
                               userName,
-                              style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             Text(
                               DateFormat('dd MMM yyyy').format(date),
-                              style: const TextStyle(fontFamily: 'Lato', fontSize: 11, color: AppColors.textGrey),
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 11,
+                                color: AppColors.textGrey,
+                              ),
                             ),
                           ],
                         ),
@@ -832,7 +871,64 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                     const SizedBox(height: 12),
                     Text(
                       comment,
-                      style: const TextStyle(fontFamily: 'Lato', fontSize: 13, color: AppColors.darkCharcoal, height: 1.5),
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 13,
+                        color: AppColors.darkCharcoal,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                  // ✅ BARU: TAMPILKAN BALASAN ADMIN JIKA ADA
+                  if (review['admin_reply'] != null &&
+                      review['admin_reply'].toString().isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGold.withOpacity(
+                          0.08,
+                        ), // Background sangat muda
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.primaryGold.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.verified_user,
+                                size: 16,
+                                color: AppColors.primaryGold,
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Management Response',
+                                style: TextStyle(
+                                  fontFamily: 'Lato',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkCharcoal,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            review['admin_reply'],
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 13,
+                              color: AppColors.darkCharcoal,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],

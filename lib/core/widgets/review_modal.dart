@@ -49,11 +49,20 @@ class _ReviewModalState extends State<ReviewModal> {
     if (mounted) {
       setState(() => _isSubmitting = false);
       if (success) {
+        // 1. Tutup modal terlebih dahulu
         Navigator.pop(context);
-        widget.onReviewSubmitted(); // Callback untuk refresh UI
+
+        // ✅ 2. UBAH PESAN DI SINI (Jadi Orange & Informatif)
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thank you for your review!'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Review submitted! It will appear after Admin approval.'),
+            backgroundColor: Colors.orange, // Warna orange menandakan "Pending"
+            behavior: SnackBarBehavior.floating,
+          ),
         );
+
+        // 3. Panggil callback untuk refresh halaman di belakangnya
+        widget.onReviewSubmitted(); 
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to submit review'), backgroundColor: Colors.red),

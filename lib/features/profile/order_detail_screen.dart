@@ -595,11 +595,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       itemType: item.itemType, // ✅ Kirim tipe item spesifik (spa/dining/wedding)
                       itemId: item.itemId,     // ✅ Kirim ID item spesifik
                       onReviewSubmitted: () {
-                        Navigator.pop(context);
                         _fetchOrder(); // Refresh halaman
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Thank you for your review!'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
-                        );
                       },
                     ),
                   );

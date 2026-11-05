@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'core/constants/app_colors.dart';
 import 'core/services/auth_service.dart';
@@ -81,11 +82,14 @@ void main() async {
   // 1. Wajib ada di paling atas
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ 1. INISIALISASI FIREBASE (Wajib dilakukan sebelum runApp)
-  await Firebase.initializeApp();
-
-  // ✅ 2. DAFTARKAN BACKGROUND HANDLER (Wajib agar tidak crash di Android)
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // ✅ PERBAIKAN: Hanya inisialisasi Firebase jika TIDAK berjalan di Web (PWA)
+  if (!kIsWeb) {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    print('🔥 [MAIN] Firebase initialized for Mobile.');
+  } else {
+    print('🌐 [MAIN] Running on Web/PWA. Skipping Firebase native init.');
+  }
 
   // 2. Load .env dengan aman (Mencegah crash jika file .env hilang/bermasalah)
   try {

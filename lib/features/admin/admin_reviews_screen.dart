@@ -24,40 +24,99 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   Future<void> _fetchReviews() async {
     setState(() => _isLoading = true);
     try {
-      // ✅ LANGKAH 1: Ambil semua data reviews terlebih dahulu
+      // 1. Ambil semua data reviews
       final reviewsResponse = await Supabase.instance.client
           .from('reviews')
-          .select('*') // Tidak perlu join profiles di sini
+          .select('*')
           .order('created_at', ascending: false);
 
       final reviewsList = (reviewsResponse as List)
           .cast<Map<String, dynamic>>();
+      if (reviewsList.isEmpty) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
 
-      // ✅ LANGKAH 2: Ambil semua ID user yang unik dari reviews
+      // 2. Ambil data profiles (Nama User)
       final userIds = reviewsList
           .map((r) => r['user_id'] as String)
           .toSet()
           .toList();
-
-      // ✅ LANGKAH 3: Ambil data profiles hanya untuk user yang mereview
       List<Map<String, dynamic>> profilesList = [];
       if (userIds.isNotEmpty) {
         final profilesResponse = await Supabase.instance.client
             .from('profiles')
             .select('id, full_name')
             .inFilter('id', userIds);
-
         profilesList = (profilesResponse as List).cast<Map<String, dynamic>>();
       }
 
-      // ✅ LANGKAH 4: Gabungkan nama user ke dalam data review
+      // 3. KELOMPOKKAN item_id berdasarkan item_type untuk Batch Fetching (Agar Cepat!)
+      Map<String, List<String>> itemsByType = {};
       for (var review in reviewsList) {
+        String type = review['item_type'] ?? 'general';
+        String id = review['item_id'] ?? '';
+        if (id.isNotEmpty) {
+          if (!itemsByType.containsKey(type)) itemsByType[type] = [];
+          if (!itemsByType[type]!.contains(id)) itemsByType[type]!.add(id);
+        }
+      }
+
+      // 4. Ambil Nama Item dari masing-masing tabel
+      Map<String, String> itemNames = {}; // Key: item_id, Value: item_name
+      for (var entry in itemsByType.entries) {
+        String type = entry.key;
+        List<String> ids = entry.value;
+
+        String tableName = '';
+        String nameColumn = 'name'; // Sesuaikan jika kolom nama Anda 'title' atau 'package_name'
+
+        switch (type) {
+          case 'property':
+            tableName = 'properties';
+            break;
+          case 'spa':
+            tableName = 'spa_services'; // Sesuaikan dengan nama tabel spa Anda
+            break;
+          case 'dining':
+            tableName =
+                'restaurants'; // Sesuaikan dengan nama tabel dining Anda
+            break;
+          case 'wedding':
+            tableName =
+                'wedding_packages'; // Sesuaikan dengan nama tabel wedding Anda
+            break;
+        }
+
+        if (tableName.isNotEmpty) {
+          try {
+            final res = await Supabase.instance.client
+                .from(tableName)
+                .select('id, $nameColumn')
+                .inFilter('id', ids);
+
+            for (var item in (res as List)) {
+              itemNames[item['id']] = item[nameColumn] ?? 'Unknown Item';
+            }
+          } catch (e) {
+            print('⚠️ [ADMIN] Gagal mengambil nama untuk $type: $e');
+          }
+        }
+      }
+
+      // 5. Gabungkan Nama User dan Nama Item ke dalam data review
+      for (var review in reviewsList) {
+        // Gabung Nama User
         final profile = profilesList.firstWhere(
           (p) => p['id'] == review['user_id'],
           orElse: () => {'full_name': 'Unknown User'},
         );
-        // Simpan nama user ke dalam map review agar mudah dipanggil di UI
         review['user_name'] = profile['full_name'] ?? 'Unknown User';
+
+        // Gabung Nama Item
+        review['item_name'] =
+            itemNames[review['item_id']] ??
+            (review['item_type'] ?? 'Unknown Item').toUpperCase();
       }
 
       if (mounted) {
@@ -66,7 +125,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           _isLoading = false;
         });
         print(
-          '✅ [ADMIN] Berhasil memuat ${_reviews.length} reviews dengan nama user.',
+          '✅ [ADMIN] Berhasil memuat ${_reviews.length} reviews dengan detail lengkap.',
         );
       }
     } catch (e) {
@@ -115,7 +174,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          _fetchReviews(); // Refresh list
+          _fetchReviews();
         }
       } catch (e) {
         if (mounted) {
@@ -130,7 +189,79 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     }
   }
 
-    void _showReplyDialog(Map<String, dynamic> review) {
+  Future<void> _approveReview(String reviewId) async {
+    try {
+      // 1. Update database
+      await Supabase.instance.client
+          .from('reviews')
+          .update({'is_approved': true})
+          .eq('id', reviewId);
+
+      if (mounted) {
+        // 2. Update UI secara lokal agar INSTAN (tanpa flicker/scroll jump)
+        final index = _reviews.indexWhere((r) => r['id'] == reviewId);
+        if (index != -1) {
+          setState(() {
+            _reviews[index]['is_approved'] = true;
+          });
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Review Approved & Published!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to approve: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _revertToPending(String reviewId) async {
+    try {
+      // 1. Update database: kembalikan is_approved menjadi false
+      await Supabase.instance.client
+          .from('reviews')
+          .update({'is_approved': false})
+          .eq('id', reviewId);
+
+      if (mounted) {
+        // 2. Update UI secara lokal agar INSTAN (tanpa flicker)
+        final index = _reviews.indexWhere((r) => r['id'] == reviewId);
+        if (index != -1) {
+          setState(() {
+            _reviews[index]['is_approved'] = false;
+          });
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Review reverted to Pending'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to revert: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showReplyDialog(Map<String, dynamic> review) {
     final replyController = TextEditingController(
       text: review['admin_reply'] ?? '',
     );
@@ -186,10 +317,9 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           ElevatedButton(
             onPressed: () async {
               final replyText = replyController.text.trim();
-              if (replyText.isEmpty) return; // Cegah kirim balasan kosong
+              if (replyText.isEmpty) return;
 
               try {
-                // ✅ LANGKAH 1: Simpan ke Database (Tetap kita lakukan agar data aman)
                 await Supabase.instance.client
                     .from('reviews')
                     .update({
@@ -198,28 +328,23 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                     })
                     .eq('id', reviewId);
 
-                // ✅ LANGKAH 2: Tutup Dialog
                 if (dialogContext.mounted) {
                   Navigator.pop(dialogContext);
                 }
 
-                // ✅ LANGKAH 3: UPDATE UI SECARA LOKAL (INSTAN, TANPA FLICKER!)
                 if (mounted) {
-                  // Cari index review yang baru saja dibalas di dalam list _reviews
                   final index = _reviews.indexWhere((r) => r['id'] == reviewId);
-                  
                   if (index != -1) {
                     setState(() {
-                      // Update data di memori secara langsung
                       _reviews[index]['admin_reply'] = replyText;
-                      _reviews[index]['admin_reply_at'] = DateTime.now().toIso8601String();
+                      _reviews[index]['admin_reply_at'] = DateTime.now()
+                          .toIso8601String();
                     });
                   }
 
-                  // Tampilkan notifikasi sukses
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Reply updated successfully!'), 
+                      content: Text('Reply updated successfully!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -321,23 +446,27 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                   final date = DateTime.parse(review['created_at']);
                   final color = _getColor(itemType);
 
-                  // ✅ CEK APAKAH SUDAH DIBALAS
+                  // ✅ CEK STATUS APPROVAL & REPLY
+                  final isApproved = review['is_approved'] == true;
                   final hasReplied =
                       review['admin_reply'] != null &&
                       review['admin_reply'].toString().isNotEmpty;
 
-                  // ✅ PENTING: Tambahkan ValueKey agar Flutter paksa rebuild kartu ini jika status berubah
+                  // ✅ PENTING: ValueKey mencakup isApproved agar rebuild saat di-approve
                   return Card(
-                    key: ValueKey('review_${review['id']}_$hasReplied'),
+                    key: ValueKey('review_${review['id']}_$isApproved'),
                     margin: const EdgeInsets.only(bottom: 12),
                     elevation: 1,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
+                      // Border hijau jika sudah di-reply, border orange jika masih pending
                       side: BorderSide(
                         color: hasReplied
                             ? Colors.green.shade400
-                            : Colors.transparent,
-                        width: hasReplied ? 1.5 : 0,
+                            : (isApproved
+                                  ? Colors.transparent
+                                  : Colors.orange.shade400),
+                        width: hasReplied ? 1.5 : (isApproved ? 0 : 1.5),
                       ),
                     ),
                     child: Padding(
@@ -370,7 +499,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                                       ),
                                     ),
                                     Text(
-                                      '${itemType.toUpperCase()} • ${DateFormat('dd MMM yyyy').format(date)}',
+                                      '${review['item_name'] ?? itemType.toUpperCase()} • ${DateFormat('dd MMM yyyy').format(date)}',
                                       style: const TextStyle(
                                         fontFamily: 'Lato',
                                         fontSize: 11,
@@ -381,8 +510,45 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                                 ),
                               ),
 
-                              // ✅ BADGE REPLIED
-                              if (hasReplied) ...[
+                              // ✅ 1. BADGE PENDING (Muncul jika BELUM di-approve)
+                              if (!isApproved) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.orange.shade400,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.hourglass_empty,
+                                        color: Colors.orange.shade700,
+                                        size: 12,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Pending',
+                                        style: TextStyle(
+                                          color: Colors.orange.shade700,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+
+                              // ✅ 2. BADGE REPLIED (Muncul jika SUDAH di-approve DAN sudah di-reply)
+                              if (isApproved && hasReplied) ...[
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -418,22 +584,48 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                                 const SizedBox(width: 8),
                               ],
 
-                              // ✅ TOMBOL REPLY (Warna berubah dinamis)
-                              IconButton(
-                                icon: Icon(
-                                  Icons.reply,
-                                  color: hasReplied
-                                      ? Colors.green.shade700
-                                      : AppColors.primaryGold, // ✅ Berubah jadi Hijau
-                                  size: 22,
+                              // ✅ 3. TOMBOL APPROVE (Hanya muncul jika BELUM di-approve)
+                              if (!isApproved)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.check_circle_outline,
+                                    color: Colors.green,
+                                    size: 26,
+                                  ),
+                                  onPressed: () => _approveReview(review['id']),
+                                  tooltip: 'Approve & Publish Review',
                                 ),
-                                onPressed: () => _showReplyDialog(review),
-                                tooltip: hasReplied
-                                    ? 'Edit Reply'
-                                    : 'Reply to Review',
-                              ),
 
-                              // TOMBOL DELETE
+                              // ✅ 3. TOMBOL REVERT TO PENDING (Hanya muncul jika SUDAH di-approve)
+                              if (isApproved)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.hourglass_bottom,
+                                    color: Colors.orange,
+                                    size: 24,
+                                  ),
+                                  onPressed: () =>
+                                      _revertToPending(review['id']),
+                                  tooltip: 'Revert to Pending',
+                                ),
+
+                              // ✅ 4. TOMBOL REPLY (Hanya muncul jika SUDAH di-approve)
+                              if (isApproved)
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.reply,
+                                    color: hasReplied
+                                        ? Colors.green.shade700
+                                        : AppColors.primaryGold,
+                                    size: 22,
+                                  ),
+                                  onPressed: () => _showReplyDialog(review),
+                                  tooltip: hasReplied
+                                      ? 'Edit Reply'
+                                      : 'Reply to Review',
+                                ),
+
+                              // ✅ 5. TOMBOL DELETE (Selalu muncul)
                               IconButton(
                                 icon: const Icon(
                                   Icons.delete_outline,

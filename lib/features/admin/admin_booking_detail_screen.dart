@@ -293,62 +293,187 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
   }
 
   Future<void> _applyDiscount() async {
-    // Dialog untuk input diskon
-    final discountController = TextEditingController();
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Apply Discount'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter discount amount (IDR):'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: discountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                hintText: 'e.g. 5000000',
-                border: OutlineInputBorder(),
+    // ✅ 1. CEK STATUS: Kunci diskon jika sudah tahap kontrak/pembayaran
+    final lockedStatuses = [
+      'Contract Sent',
+      'DP Received',
+      'Fully Paid',
+      'Cancelled',
+    ];
+    if (lockedStatuses.contains(_selectedWeddingStatus)) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.lock_outline, color: Colors.orange, size: 24),
+              SizedBox(width: 8),
+              Text(
+                'Discount Locked',
+                style: TextStyle(fontFamily: 'Playfair Display'),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Discount cannot be changed because the booking has reached a finalized stage (Contract/DP/Paid). Please contact a supervisor if an adjustment is absolutely necessary.',
+            style: TextStyle(fontFamily: 'Lato', fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Understood',
+                style: TextStyle(color: AppColors.darkCharcoal),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-            child: const Text('Apply', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+      );
+      return; // Hentikan eksekusi
+    }
+
+    // ✅ 2. Ambil data diskon saat ini (jika ada)
+    final currentDiscount = _order!.discountAmount ?? 0;
+
+    // Hitung harga asli (sebelum diskon) untuk kalkulasi yang akurat
+    final originalTotal = (_order!.totalAmount) + currentDiscount;
+
+    final discountController = TextEditingController(
+      // Pre-fill dengan diskon saat ini, jika 0 biarkan kosong
+      text: currentDiscount > 0 ? currentDiscount.toString() : '',
+    );
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          // Hitung total baru secara real-time saat admin mengetik
+          final inputDiscount = int.tryParse(discountController.text) ?? 0;
+          final projectedTotal = originalTotal - inputDiscount;
+
+          return AlertDialog(
+            title: const Text(
+              'Apply / Update Discount',
+              style: TextStyle(
+                fontFamily: 'Playfair Display',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Original Total: IDR ${NumberFormat.currency(locale: 'id_ID', decimalDigits: 0).format(originalTotal)}',
+                  style: const TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 12,
+                    color: AppColors.textGrey,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: discountController,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Discount Amount (IDR)',
+                    hintText: 'e.g. 10000000',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.local_offer, color: Colors.purple),
+                  ),
+                  onChanged: (_) => setDialogState(
+                    () {},
+                  ), // Trigger rebuild untuk update projected total
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.purple.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'New Projected Total:',
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'IDR ${NumberFormat.currency(locale: 'id_ID', decimalDigits: 0).format(projectedTotal)}',
+                        style: const TextStyle(
+                          fontFamily: 'Playfair Display',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+                child: const Text(
+                  'Update Discount',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
 
-    if (confirm == true && discountController.text.isNotEmpty) {
-      final discountAmount = int.tryParse(discountController.text) ?? 0;
-      final newTotalAmount = (_order!.totalAmount) - discountAmount;
+    // ✅ 3. Proses Update ke Database
+    if (confirm == true) {
+      final newDiscountAmount = int.tryParse(discountController.text) ?? 0;
+      final newTotalAmount = originalTotal - newDiscountAmount;
+
+      // Validasi agar total tidak minus
+      if (newTotalAmount < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Discount cannot be greater than the original total!',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       try {
-        // Update database: simpan diskon dan total baru
         await Supabase.instance.client
             .from('orders')
             .update({
-              'discount_amount': discountAmount,
+              'discount_amount': newDiscountAmount,
               'total_amount': newTotalAmount,
             })
             .eq('id', _order!.id);
 
         if (mounted) {
-          // Refresh data agar UI terupdate
+          // Refresh data order agar UI terupdate dengan angka baru
           await _fetchOrder();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Discount applied successfully!'),
+              content: Text('Discount updated successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -357,7 +482,7 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to apply discount: $e'),
+              content: Text('Failed to update discount: $e'),
               backgroundColor: Colors.red,
             ),
           );

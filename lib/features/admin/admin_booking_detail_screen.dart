@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order_model.dart';
@@ -20,6 +21,17 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
   Order? _order;
   bool _isUpdating = false;
 
+  String? _selectedWeddingStatus;
+  final List<String> _weddingStatusOptions = [
+    'Pending Inquiry',
+    'Survey Scheduled',
+    'Negotiation',
+    'Contract Sent',
+    'DP Received',
+    'Fully Paid',
+    'Cancelled',
+  ];
+
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'IDR ',
@@ -35,9 +47,15 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
   Future<void> _fetchOrder() async {
     setState(() => _isLoading = true);
     final order = await OrderService.getOrderById(widget.orderId);
+
     if (mounted) {
       setState(() {
         _order = order;
+
+        // ✅ PERBAIKAN: Gunakan tanda titik (.) dan tanda tanya (?) untuk null-safety
+        // Pastikan nama property di model Order Anda adalah 'weddingStatus' atau 'wedding_status'
+        _selectedWeddingStatus = order?.weddingStatus ?? 'Pending Inquiry';
+
         _isLoading = false;
       });
     }
@@ -242,6 +260,112 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
     }
   }
 
+  // ✅ METHOD BARU: Update Status Khusus Wedding
+  Future<void> _updateWeddingStatus(String newStatus) async {
+    try {
+      // Update langsung ke tabel orders
+      await Supabase.instance.client
+          .from('orders')
+          .update({'wedding_status': newStatus})
+          .eq('id', _order!.id);
+
+      if (mounted) {
+        setState(() {
+          _selectedWeddingStatus = newStatus; // Update UI secara lokal
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Wedding status updated to: $newStatus'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _applyDiscount() async {
+    // Dialog untuk input diskon
+    final discountController = TextEditingController();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Apply Discount'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter discount amount (IDR):'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: discountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                hintText: 'e.g. 5000000',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+            child: const Text('Apply', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && discountController.text.isNotEmpty) {
+      final discountAmount = int.tryParse(discountController.text) ?? 0;
+      final newTotalAmount = (_order!.totalAmount) - discountAmount;
+
+      try {
+        // Update database: simpan diskon dan total baru
+        await Supabase.instance.client
+            .from('orders')
+            .update({
+              'discount_amount': discountAmount,
+              'total_amount': newTotalAmount,
+            })
+            .eq('id', _order!.id);
+
+        if (mounted) {
+          // Refresh data agar UI terupdate
+          await _fetchOrder();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Discount applied successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to apply discount: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   String _formatMetadata(OrderItem item) {
     final meta = item.metadata;
     final parts = <String>[];
@@ -419,6 +543,138 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
                   ),
                 )
                 .toList(),
+
+            // ✅ BARU: Detail & Status Khusus Wedding (Muncul HANYA jika ada item wedding)
+            if (_order!.items.any((item) => item.itemType == 'wedding')) ...[
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.pink.shade50, // Warna soft pink khas wedding
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.pink.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.favorite,
+                          color: Colors.pink.shade600,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Wedding Inquiry Details',
+                          style: TextStyle(
+                            fontFamily: 'Playfair Display',
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkCharcoal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 📅 Tanggal Acara (Ambil dari Order atau fallback ke Metadata)
+                    _buildInfoRow(
+                      'Event Date',
+                      _order!.eventDate != null
+                          ? DateFormat('dd MMMM yyyy')
+                                .format(DateTime.parse(_order!.eventDate!))
+                          : (_order!.items
+                                    .firstWhere((i) => i.itemType == 'wedding')
+                                    .metadata['event_date'] ??
+                                'Not specified'),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 👥 Jumlah Tamu
+                    _buildInfoRow(
+                      'Estimated Guests',
+                      _order!.guestCount != null
+                          ? '${_order!.guestCount} Guests'
+                          : (_order!.items
+                                        .firstWhere(
+                                          (i) => i.itemType == 'wedding',
+                                        )
+                                        .metadata['guests'] !=
+                                    null
+                                ? '${_order!.items.firstWhere((i) => i.itemType == 'wedding').metadata['guests']} Guests'
+                                : 'Not specified'),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // 🔄 Dropdown Ubah Status Wedding
+                    const Text(
+                      'Update Wedding Status',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _selectedWeddingStatus,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items: _weddingStatusOptions.map((String status) {
+                        return DropdownMenuItem<String>(
+                          value: status,
+                          child: Text(
+                            status,
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 13,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null &&
+                            newValue != _selectedWeddingStatus) {
+                          _updateWeddingStatus(newValue);
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+                    // ✅ TOMBOL KHUSUS ADMIN: APPLY DISCOUNT
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _applyDiscount,
+                        icon: const Icon(
+                          Icons.local_offer,
+                          color: Colors.purple,
+                        ),
+                        label: const Text(
+                          'Apply Custom Discount',
+                          style: TextStyle(
+                            color: Colors.purple,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.purple),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 24),
 

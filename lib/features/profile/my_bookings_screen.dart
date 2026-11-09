@@ -93,6 +93,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       appBar: AppBar(
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
+        // ✅ TAMBAHKAN BAGIAN INI: Tombol Kembali ke Home
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Cek apakah ada halaman sebelumnya yang bisa di-pop
+            if (Navigator.canPop(context)) {
+              context.pop();
+            } else {
+              // Jika tidak ada (karena kita pakai context.go), paksa kembali ke Home
+              context.go('/');
+            }
+          },
+        ),
         title: const Text(
           'My Bookings',
           style: TextStyle(

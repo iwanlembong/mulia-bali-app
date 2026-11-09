@@ -40,30 +40,55 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     'completed': 0,
   };
 
+  bool _isRouteSubscribed = false; // ✅ Mencegah subscribe berulang kali
+
   @override
   void initState() {
     super.initState();
+
+    // 1. Load user info (ringan)
     _loadUserInfo();
-    _fetchStats();
-    _fetchPendingVerifications();
-    _fetchDashboardStats();
+
+    // 2. Tunda SEMUA query berat sampai UI pertama selesai digambar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      // Gunakan microtask dan delay agar Main Thread tidak macet
+      Future.microtask(() async {
+        if (!mounted) return;
+        await _fetchDashboardStats();
+
+        // Beri jeda 500ms agar UI bisa merespons sentuhan user
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        await _fetchPendingVerifications();
+
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        await _fetchStats();
+      });
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // ✅ PERBAIKAN: Cek null sebelum subscribe untuk mencegah crash fatal
-    final route = ModalRoute.of(context);
-
-    if (route != null) {
-      routeObserver.subscribe(this, route);
+    // ✅ PERBAIKAN: Hanya subscribe SEKALI untuk mencegah memory leak
+    if (!_isRouteSubscribed) {
+      final route = ModalRoute.of(context);
+      if (route != null) {
+        routeObserver.subscribe(this, route);
+        _isRouteSubscribed = true;
+      }
     }
   }
 
   @override
   void dispose() {
-    routeObserver.unsubscribe(this);
+    if (_isRouteSubscribed) {
+      routeObserver.unsubscribe(this);
+    }
     super.dispose();
   }
 
@@ -83,46 +108,61 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
 
+      // ✅ AMAN: Hanya ambil kolom 'id' dengan limit untuk mencegah OOM
       final pendingRes = await Supabase.instance.client
           .from('reservations')
           .select('id')
-          .eq('status', 'pending');
+          .eq('status', 'pending')
+          .limit(1000);
+
       final pendingOrders = await Supabase.instance.client
           .from('orders')
           .select('id')
-          .eq('status', 'pending');
+          .eq('status', 'pending')
+          .limit(1000);
+
       final checkins = await Supabase.instance.client
           .from('reservations')
           .select('id')
           .eq('status', 'confirmed')
-          .eq('check_in', today);
+          .eq('check_in', today)
+          .limit(1000);
+
       final vouchers = await Supabase.instance.client
           .from('redemptions')
           .select('id')
-          .eq('status', 'used');
+          .eq('status', 'used')
+          .limit(1000);
+
       final completedRes = await Supabase.instance.client
           .from('reservations')
           .select('id')
-          .eq('status', 'completed');
+          .eq('status', 'completed')
+          .limit(1000);
+
       final completedOrders = await Supabase.instance.client
           .from('orders')
           .select('id')
-          .eq('status', 'completed');
+          .eq('status', 'completed')
+          .limit(1000);
 
-      setState(() {
-        _dashboardStats = {
-          'pending':
-              (pendingRes as List).length + (pendingOrders as List).length,
-          'checkins': (checkins as List).length,
-          'vouchers': (vouchers as List).length,
-          'completed':
-              (completedRes as List).length + (completedOrders as List).length,
-        };
-        _isLoadingStats = false;
-      });
+      if (mounted) {
+        setState(() {
+          _dashboardStats = {
+            'pending':
+                (pendingRes as List).length + (pendingOrders as List).length,
+            'checkins': (checkins as List).length,
+            'vouchers': (vouchers as List).length,
+            'completed':
+                (completedRes as List).length +
+                (completedOrders as List).length,
+          };
+          _isLoadingStats = false;
+        });
+      }
     } catch (e) {
       print('❌ Error fetching dashboard stats: $e');
-      setState(() => _isLoadingStats = false);
+      if (mounted) setState(() => _isLoadingStats = false);
     }
   }
 
@@ -152,20 +192,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           .select('id')
           .eq('status', 'pending')
           .isFilter('rejection_reason', null)
-          .not('payment_proof_url', 'is', null);
+          .not('payment_proof_url', 'is', null)
+          .limit(1000);
 
       final orderResponse = await Supabase.instance.client
           .from('orders')
           .select('id')
           .eq('status', 'pending')
           .isFilter('rejection_reason', null)
-          .not('payment_proof_url', 'is', null);
+          .not('payment_proof_url', 'is', null)
+          .limit(1000);
 
       if (mounted) {
         setState(() {
-          final resCount = (resResponse as List).length;
-          final orderCount = (orderResponse as List).length;
-          _pendingVerificationCount = resCount + orderCount;
+          _pendingVerificationCount =
+              ((resResponse as List).length) + ((orderResponse as List).length);
         });
       }
     } catch (e) {
@@ -180,36 +221,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     try {
       final propertiesResponse = await Supabase.instance.client
           .from('properties')
-          .select('id');
+          .select('id')
+          .limit(1000);
+
       final roomsResponse = await Supabase.instance.client
           .from('rooms')
-          .select('id');
+          .select('id')
+          .limit(1000);
+
       final spaResponse = await Supabase.instance.client
           .from('spa_services')
-          .select('id');
+          .select('id')
+          .limit(1000);
 
-      // ✅ BARU: Fetch data tambahan
       final restaurantsResponse = await Supabase.instance.client
           .from('restaurants')
-          .select('id');
+          .select('id')
+          .limit(1000);
+
       final menusResponse = await Supabase.instance.client
           .from('menu_items')
-          .select('id'); // ⚠️ Ganti 'menu_items' menjadi 'menus' jika nama tabel Anda berbeda
+          .select('id')
+          .limit(1000);
+
       final weddingsResponse = await Supabase.instance.client
           .from('weddings')
-          .select('id');
+          .select('id')
+          .limit(1000);
 
       if (mounted) {
         setState(() {
           _propertiesCount = (propertiesResponse as List).length;
           _roomsCount = (roomsResponse as List).length;
           _spaCount = (spaResponse as List).length;
-
-          // ✅ BARU: Update state
           _restaurantsCount = (restaurantsResponse as List).length;
           _menusCount = (menusResponse as List).length;
           _weddingsCount = (weddingsResponse as List).length;
-
           _isLoadingStats = false;
         });
       }
@@ -226,6 +273,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Hitung lebar kartu agar pas 2 kolom (lebar layar - padding kiri kanan - spacing)
+    final cardWidth = (screenWidth - 48 - 16) / 2;
+
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -247,15 +298,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
         ],
       ),
+      // ✅ HANYA SATU SingleChildScrollView di tingkat teratas
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Card
+            // 1. Welcome Card
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [AppColors.darkCharcoal, Color(0xFF4A4A4A)],
@@ -263,13 +315,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,7 +325,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       fontFamily: 'Lato',
                       fontSize: 14,
                       color: Colors.white70,
-                      letterSpacing: 1,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -288,17 +332,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     _userName,
                     style: const TextStyle(
                       fontFamily: 'Playfair Display',
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primaryGold,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   const Text(
-                    'Manage your hotel content, reservations, and more from this dashboard.',
+                    'Manage your hotel content and reservations.',
                     style: TextStyle(
                       fontFamily: 'Lato',
-                      fontSize: 13,
+                      fontSize: 12,
                       color: Colors.white70,
                     ),
                   ),
@@ -318,69 +362,74 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
             const SizedBox(height: 16),
 
+            // ✅ PERBAIKAN KRITIS 1: Gunakan Wrap, BUKAN GridView.count + shrinkWrap
             _isLoadingStats
-                ? GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1.1,
-                    children: const [
+                ? const Wrap(
+                    runSpacing: 16,
+                    spacing: 16,
+                    children: [
                       ShimmerStatCard(),
                       ShimmerStatCard(),
                       ShimmerStatCard(),
                       ShimmerStatCard(),
                     ],
                   )
-                : GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1.1,
+                : Wrap(
+                    runSpacing: 16,
+                    spacing: 16,
                     children: [
-                      _buildStatCard(
-                        title: 'Pending Verification',
-                        value: _dashboardStats['pending']!,
-                        icon: Icons.hourglass_empty,
-                        color: Colors.orange.shade700,
+                      SizedBox(
+                        width: cardWidth,
+                        child: _buildStatCard(
+                          title: 'Pending',
+                          value: _dashboardStats['pending']!,
+                          icon: Icons.hourglass_empty,
+                          color: Colors.orange.shade700,
+                        ),
                       ),
-                      _buildStatCard(
-                        title: 'Check-ins Today',
-                        value: _dashboardStats['checkins']!,
-                        icon: Icons.login,
-                        color: Colors.blue.shade700,
+                      SizedBox(
+                        width: cardWidth,
+                        child: _buildStatCard(
+                          title: 'Check-ins',
+                          value: _dashboardStats['checkins']!,
+                          icon: Icons.login,
+                          color: Colors.blue.shade700,
+                        ),
                       ),
-                      _buildStatCard(
-                        title: 'Vouchers Redeemed',
-                        value: _dashboardStats['vouchers']!,
-                        icon: Icons.card_giftcard,
-                        color: Colors.purple.shade700,
+                      SizedBox(
+                        width: cardWidth,
+                        child: _buildStatCard(
+                          title: 'Vouchers',
+                          value: _dashboardStats['vouchers']!,
+                          icon: Icons.card_giftcard,
+                          color: Colors.purple.shade700,
+                        ),
                       ),
-                      _buildStatCard(
-                        title: 'Total Completed',
-                        value: _dashboardStats['completed']!,
-                        icon: Icons.check_circle_outline,
-                        color: Colors.green.shade700,
+                      SizedBox(
+                        width: cardWidth,
+                        child: _buildStatCard(
+                          title: 'Completed',
+                          value: _dashboardStats['completed']!,
+                          icon: Icons.check_circle_outline,
+                          color: Colors.green.shade700,
+                        ),
                       ),
                     ],
                   ),
-            const SizedBox(height: 32),
 
+            const SizedBox(height: 32),
             const Text(
               'Content Management',
               style: TextStyle(
                 fontFamily: 'Playfair Display',
-                fontSize: 22,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: AppColors.darkCharcoal,
               ),
             ),
             const SizedBox(height: 16),
 
-            // Baris 1
+            // 2. Module Cards (Tetap menggunakan Row + Expanded, ini sudah aman)
             Row(
               children: [
                 Expanded(
@@ -388,7 +437,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     context,
                     icon: Icons.business,
                     title: 'Properties',
-                    subtitle: 'Manage hotels & rooms',
+                    subtitle: 'Manage hotels',
                     color: AppColors.primaryGold,
                     onTap: () => context.go('/admin/properties'),
                   ),
@@ -399,7 +448,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     context,
                     icon: Icons.spa,
                     title: 'Spa Services',
-                    subtitle: 'Treatments & pricing',
+                    subtitle: 'Treatments',
                     color: const Color(0xFF8B7355),
                     onTap: () => context.go('/admin/spa'),
                   ),
@@ -407,8 +456,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ],
             ),
             const SizedBox(height: 16),
-
-            // Baris 2
             Row(
               children: [
                 Expanded(
@@ -427,7 +474,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     context,
                     icon: Icons.confirmation_num_outlined,
                     title: 'Promo Codes',
-                    subtitle: 'Manage discount rules',
+                    subtitle: 'Discount rules',
                     color: Colors.green.shade700,
                     onTap: () => context.push('/admin/promotions'),
                   ),
@@ -435,8 +482,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ],
             ),
             const SizedBox(height: 16),
-
-            // Baris 3
             Row(
               children: [
                 Expanded(
@@ -444,56 +489,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     context,
                     icon: Icons.card_giftcard,
                     title: 'Rewards',
-                    subtitle: 'Manage points & gifts',
+                    subtitle: 'Points & gifts',
                     color: Colors.purple.shade700,
                     onTap: () => context.push('/admin/rewards'),
                   ),
                 ),
                 const SizedBox(width: 16),
-                // ✅ BARU: Kartu Manage Reviews
                 Expanded(
                   child: _buildModuleCard(
                     context,
-                    icon: Icons.rate_review, // Ikon Review
+                    icon: Icons.rate_review,
                     title: 'Reviews',
-                    subtitle: 'Moderate user reviews',
-                    color: Colors.orange.shade700, // Warna Orange agar mencolok
+                    subtitle: 'Moderate reviews',
+                    color: Colors.orange.shade700,
                     onTap: () => context.push('/admin/reviews'),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-
-            // Baris 4
-            Row(
-              children: [
-                Expanded(
-                  child: _buildModuleCard(
-                    context,
-                    icon: Icons.local_offer,
-                    title: 'Special Offers',
-                    subtitle: 'Promotions & deals',
-                    color: const Color(0xFFCD5C5C),
-                    onTap: () => context.go('/admin/special-offers'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildModuleCard(
-                    context,
-                    icon: Icons.image,
-                    title: 'Hero Slides',
-                    subtitle: 'Home banner',
-                    color: const Color(0xFF4682B4),
-                    onTap: () => context.go('/admin/hero-slides'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Baris 5
             Row(
               children: [
                 Expanded(
@@ -501,7 +515,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     context,
                     icon: Icons.auto_awesome,
                     title: 'Experiences',
-                    subtitle: 'Activities & events',
+                    subtitle: 'Activities',
                     color: const Color(0xFF008080),
                     onTap: () => context.go('/admin/experiences'),
                   ),
@@ -512,7 +526,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     context,
                     icon: Icons.favorite,
                     title: 'Weddings',
-                    subtitle: 'Wedding packages',
+                    subtitle: 'Packages',
                     color: Colors.pink.shade300,
                     onTap: () => context.go('/admin/weddings'),
                   ),
@@ -520,15 +534,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ],
             ),
             const SizedBox(height: 16),
-
-            // Baris 6
             Row(
               children: [
                 Expanded(
                   child: _buildModuleCard(
                     context,
                     title: 'Bookings',
-                    subtitle: 'Manage service orders',
+                    subtitle: 'Service orders',
                     icon: Icons.receipt_long,
                     color: Colors.blue.shade700,
                     onTap: () => context.push('/admin/bookings'),
@@ -540,7 +552,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     context,
                     icon: Icons.bed_outlined,
                     title: 'Reservations',
-                    subtitle: 'Manage room bookings',
+                    subtitle: 'Room bookings',
                     color: const Color(0xFF9370DB),
                     onTap: () => context.push('/admin/reservations'),
                   ),
@@ -549,83 +561,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
             const SizedBox(height: 16),
 
-            // BARIS 7: Payment Verification (DINAMIS)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildModuleCard(
-                    context,
-                    icon: Icons.receipt_long,
-                    title: 'Voucher History',
-                    subtitle: 'See all point redemptions',
-                    color: Colors.purple.shade700,
-                    onTap: () => context.push('/admin/redemptions'),
+            // Payment Verification Card
+            _buildModuleCard(
+              context,
+              icon: Icons.verified_user_outlined,
+              title: 'Payment Verification',
+              subtitle: _pendingVerificationCount > 0
+                  ? '$_pendingVerificationCount pending approval'
+                  : 'Approve user transfers',
+              color: _pendingVerificationCount > 0
+                  ? Colors.orange.shade700
+                  : Colors.green.shade700,
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const AdminPaymentVerificationScreen(),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      _buildModuleCard(
-                        context,
-                        icon: Icons.verified_user_outlined,
-                        title: 'Payment Verification',
-                        subtitle: _pendingVerificationCount > 0
-                            ? '$_pendingVerificationCount pending approval'
-                            : 'Approve user transfers',
-                        color: _pendingVerificationCount > 0
-                            ? Colors.orange.shade700
-                            : Colors.green.shade700,
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const AdminPaymentVerificationScreen(),
-                            ),
-                          );
-                          _fetchPendingVerifications();
-                        },
-                      ),
-                      if (_pendingVerificationCount > 0)
-                        Positioned(
-                          right: 12,
-                          top: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade600,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.red.withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              _pendingVerificationCount.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+                );
+                _fetchPendingVerifications();
+              },
+              showBadge: _pendingVerificationCount > 0,
+              badgeCount: _pendingVerificationCount,
             ),
 
             const SizedBox(height: 32),
-
-            // ✅ STATS SECTION (DIPERBARUI MENJADI GRID 3 KOLOM)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -648,14 +609,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     await _fetchDashboardStats();
                     await _fetchStats();
                   },
-                  tooltip: 'Refresh All Data',
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
+                  tooltip: 'Refresh',
                 ),
               ],
             ),
             const SizedBox(height: 16),
 
+            // ✅ PERBAIKAN KRITIS 2: Ganti GridView.count 3-kolom dengan Wrap
             _isLoadingStats
                 ? const Center(
                     child: Padding(
@@ -665,59 +625,74 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                     ),
                   )
-                : GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount:
-                        3, // ✅ 3 kolom agar muat 6 item dengan rapi (2 baris)
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.0, // ✅ Menyesuaikan proporsi kartu
+                : Wrap(
+                    runSpacing: 12,
+                    spacing: 12,
                     children: [
-                      _buildStatCard(
-                        title: 'Properties',
-                        value: _propertiesCount,
-                        icon: Icons.business,
-                        color: Colors.blue.shade700,
+                      SizedBox(
+                        width: (screenWidth - 48 - 24) / 3,
+                        child: _buildStatCard(
+                          title: 'Properties',
+                          value: _propertiesCount,
+                          icon: Icons.business,
+                          color: Colors.blue.shade700,
+                        ),
                       ),
-                      _buildStatCard(
-                        title: 'Rooms',
-                        value: _roomsCount,
-                        icon: Icons.bed,
-                        color: Colors.green.shade700,
+                      SizedBox(
+                        width: (screenWidth - 48 - 24) / 3,
+                        child: _buildStatCard(
+                          title: 'Rooms',
+                          value: _roomsCount,
+                          icon: Icons.bed,
+                          color: Colors.green.shade700,
+                        ),
                       ),
-                      _buildStatCard(
-                        title: 'Spa',
-                        value: _spaCount,
-                        icon: Icons.spa,
-                        color: Colors.purple.shade700,
+                      SizedBox(
+                        width: (screenWidth - 48 - 24) / 3,
+                        child: _buildStatCard(
+                          title: 'Spa',
+                          value: _spaCount,
+                          icon: Icons.spa,
+                          color: Colors.purple.shade700,
+                        ),
                       ),
-                      _buildStatCard(
-                        title: 'Restaurants',
-                        value: _restaurantsCount,
-                        icon: Icons.restaurant,
-                        color: const Color(0xFF6B8E23),
+                      SizedBox(
+                        width: (screenWidth - 48 - 24) / 3,
+                        child: _buildStatCard(
+                          title: 'Restaurants',
+                          value: _restaurantsCount,
+                          icon: Icons.restaurant,
+                          color: const Color(0xFF6B8E23),
+                        ),
                       ),
-                      _buildStatCard(
-                        title: 'Menus',
-                        value: _menusCount,
-                        icon: Icons.menu_book,
-                        color: Colors.orange.shade700,
+                      SizedBox(
+                        width: (screenWidth - 48 - 24) / 3,
+                        child: _buildStatCard(
+                          title: 'Menus',
+                          value: _menusCount,
+                          icon: Icons.menu_book,
+                          color: Colors.orange.shade700,
+                        ),
                       ),
-                      _buildStatCard(
-                        title: 'Weddings',
-                        value: _weddingsCount,
-                        icon: Icons.favorite,
-                        color: Colors.pink.shade300,
+                      SizedBox(
+                        width: (screenWidth - 48 - 24) / 3,
+                        child: _buildStatCard(
+                          title: 'Weddings',
+                          value: _weddingsCount,
+                          icon: Icons.favorite,
+                          color: Colors.pink.shade300,
+                        ),
                       ),
                     ],
                   ),
+            const SizedBox(height: 32), // Extra padding at bottom
           ],
         ),
       ),
     );
   }
 
+  // ✅ Helper untuk Badge pada Module Card
   Widget _buildModuleCard(
     BuildContext context, {
     required IconData icon,
@@ -725,11 +700,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     required String subtitle,
     required Color color,
     required VoidCallback onTap,
+    bool showBadge = false,
+    int badgeCount = 0,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -741,38 +718,73 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 28),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 11,
+                    color: color.withOpacity(0.8),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontFamily: 'Playfair Display',
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.darkCharcoal,
+            if (showBadge)
+              Positioned(
+                right: -8,
+                top: -8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade600,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    badgeCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontFamily: 'Lato',
-                fontSize: 12,
-                color: color.withOpacity(0.8),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
           ],
         ),
       ),
@@ -786,17 +798,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(
-        12,
-      ), // ✅ Sedikit diperkecil agar muat di 3 kolom
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -807,33 +817,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: 18),
               ),
               Text(
                 value.toString(),
                 style: const TextStyle(
                   fontFamily: 'Playfair Display',
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: AppColors.darkCharcoal,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             title,
             style: const TextStyle(
               fontFamily: 'Lato',
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               color: AppColors.textGrey,
-              letterSpacing: 0.5,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

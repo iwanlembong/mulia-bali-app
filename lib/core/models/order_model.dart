@@ -82,6 +82,11 @@ class Order {
   final String? paymentProofUrl;
   final String? rejectionReason; // ✅ TAMBAHKAN INI
 
+  // ✅ TAMBAHKAN BARIS INI DI DALAM CLASS ORDER
+  final String? weddingStatus;
+  final int? guestCount;
+  final String? eventDate;
+
   Order({
     required this.id,
     required this.userId,
@@ -102,6 +107,10 @@ class Order {
     this.paymentMethod,
     this.paymentProofUrl,
     this.rejectionReason, // ✅ TAMBAHKAN INI
+    // ✅ TAMBAHKAN DI CONSTRUCTOR
+    this.weddingStatus,
+    this.guestCount,
+    this.eventDate,
   });
 
   factory Order.fromMap(Map<String, dynamic> map, {List<OrderItem>? items}) {
@@ -119,7 +128,8 @@ class Order {
       promoCode: map['promo_code'] as String?,
       voucherId: map['voucher_id'] as String?, // ✅ TAMBAHKAN INI
       // ✅ HARUS TERTULIS SEPERTI INI:
-      voucherDiscountAmount: (map['voucher_discount_amount'] as num?)?.toInt() ?? 0, 
+      voucherDiscountAmount:
+          (map['voucher_discount_amount'] as num?)?.toInt() ?? 0,
       orderDate: DateTime.parse(map['order_date'] as String),
       notes: map['notes'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -135,6 +145,10 @@ class Order {
       paymentMethod: map['payment_method'] as String?,
       paymentProofUrl: map['payment_proof_url'] as String?,
       rejectionReason: map['rejection_reason'] as String?, // ✅ TAMBAHKAN INI
+      // ✅ TAMBAHKAN MAPPING DARI DATABASE
+      weddingStatus: map['wedding_status'] as String?,
+      guestCount: map['guest_count'] as int?,
+      eventDate: map['event_date'] as String?,
     );
   }
 

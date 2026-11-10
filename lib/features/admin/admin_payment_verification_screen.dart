@@ -3,10 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/models/payment_model.dart'; // ✅ BARU
+import '../../core/services/payment_service.dart'; // ✅ BARU
 import '../../core/models/reservation_model.dart';
 import '../../core/models/order_model.dart';
 import '../../core/services/email_service.dart';
-// ⚠️ PASTIKAN PATH INI SESUAI DENGAN STRUKTUR FOLDER ANDA
 import 'admin_reservation_detail_screen.dart';
 import 'admin_booking_detail_screen.dart';
 
@@ -24,15 +25,19 @@ class _AdminPaymentVerificationScreenState
   late TabController _tabController;
   bool _isLoading = true;
 
-  // ✅ BARU: Dua list terpisah untuk Accommodation dan Services
-  List<Reservation> _pendingReservations = [];
-  List<Order> _pendingOrders = [];
+  // ✅ BARU: Menyimpan data pembayaran yang sudah diperkaya dengan detail Order/Reservation
+  List<Map<String, dynamic>> _pendingOrderPayments = [];
+  List<Map<String, dynamic>> _pendingReservationPayments = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _fetchPendingVerifications();
+    _tabController.addListener(() {
+      if (mounted)
+        setState(() {}); // Rebuild saat tab berubah untuk animasi yang mulus
+    });
   }
 
   @override
@@ -41,38 +46,67 @@ class _AdminPaymentVerificationScreenState
     super.dispose();
   }
 
-  // ✅ SOLUSI BULLETPROOF: Fetch & Merge (Menghindari Error JOIN PGRST200)
+  // ✅ SOLUSI BARU: Fetch dari order_payments, lalu enrich dengan data Orders/Reservations
   Future<void> _fetchPendingVerifications() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Fetch Reservations (Hanya yang pending DAN belum ada alasan revisi)
-      final resResponse = await Supabase.instance.client
-          .from('reservations')
-          .select()
-          .eq('status', 'pending')
-          .isFilter('rejection_reason', null) // ✅ GANTI MENJADI .isFilter()
-          .not('payment_proof_url', 'is', null)
-          .order('created_at', ascending: false);
+      // 1. Ambil semua pembayaran yang statusnya 'pending' dari tabel baru
+      final payments = await PaymentService.getPendingPayments();
 
-      // 2. Fetch Orders (Hanya yang pending DAN belum ada alasan revisi)
-      final orderResponse = await Supabase.instance.client
-          .from('orders')
-          .select()
-          .eq('status', 'pending')
-          .isFilter('rejection_reason', null) // ✅ GANTI MENJADI .isFilter()
-          .not('payment_proof_url', 'is', null)
-          .order('order_date', ascending: false);
+      // 2. Pisahkan ID Order dan Reservation untuk di-fetch detailnya
+      final orderIds = payments.where((p) => p.orderId != null).map((p) => p.orderId!).toSet().toList();
+      final resIds = payments.where((p) => p.reservationId != null).map((p) => p.reservationId!).toSet().toList();
 
-      // 2. Kumpulkan semua user_id yang unik dari kedua tabel
+      // Kumpulkan semua user_id unik
       Set<String> userIds = {};
-      for (var res in resResponse) {
-        if (res['user_id'] != null) userIds.add(res['user_id']);
-      }
-      for (var order in orderResponse) {
-        if (order['user_id'] != null) userIds.add(order['user_id']);
+
+      // 3. Fetch detail Orders terkait (HANYA ambil user_id, BUKAN user_name)
+      List<Map<String, dynamic>> enrichedOrders = [];
+      if (orderIds.isNotEmpty) {
+        final ordersData = await Supabase.instance.client
+            .from('orders')
+            .select('id, order_number, total_amount, user_id') // ✅ AMAN: user_id
+            .inFilter('id', orderIds);
+
+        for (var order in ordersData) {
+          if (order['user_id'] != null) userIds.add(order['user_id']);
+          final payment = payments.firstWhere((p) => p.orderId == order['id']);
+          enrichedOrders.add({
+            'payment': payment,
+            'id': order['id'],
+            'title': order['order_number'],
+            'user_id': order['user_id'], 
+            'subtitle': 'Service Booking',
+            'total_amount': order['total_amount'] as int,
+          });
+        }
       }
 
-      // 3. Ambil data nama tamu (profiles) secara batch
+      // 4. Fetch detail Reservations terkait (HANYA ambil user_id, BUKAN guest_name)
+      List<Map<String, dynamic>> enrichedReservations = [];
+      if (resIds.isNotEmpty) {
+        final resData = await Supabase.instance.client
+            .from('reservations')
+            .select('id, reservation_number, total_amount, user_id, check_in, check_out') // ✅ AMAN: user_id
+            .inFilter('id', resIds);
+
+        for (var res in resData) {
+          if (res['user_id'] != null) userIds.add(res['user_id']);
+          final payment = payments.firstWhere((p) => p.reservationId == res['id']);
+          enrichedReservations.add({
+            'payment': payment,
+            'id': res['id'],
+            'title': res['reservation_number'],
+            'user_id': res['user_id'], 
+            'subtitle': 'Accommodation',
+            'total_amount': res['total_amount'] as int,
+            'check_in': res['check_in'],
+            'check_out': res['check_out'],
+          });
+        }
+      }
+
+      // 5. Ambil data nama tamu (profiles) secara batch menggunakan user_id yang terkumpul
       Map<String, String> userNames = {};
       if (userIds.isNotEmpty) {
         final profilesResponse = await Supabase.instance.client
@@ -85,23 +119,18 @@ class _AdminPaymentVerificationScreenState
         }
       }
 
-      // 4. Gabungkan (Merge) nama tamu ke dalam data Reservations & Orders
+      // 6. Suntikkan nama tamu ke dalam data yang sudah di-enrich
+      for (var order in enrichedOrders) {
+        order['guest_name'] = userNames[order['user_id']] ?? 'Guest';
+      }
+      for (var res in enrichedReservations) {
+        res['guest_name'] = userNames[res['user_id']] ?? 'Guest';
+      }
+
       if (mounted) {
         setState(() {
-          _pendingReservations = (resResponse as List).map((e) {
-            final map = e as Map<String, dynamic>;
-            // ✅ Suntikkan nama tamu ke dalam map sebelum di-parse ke Model
-            map['guest_name'] = userNames[map['user_id']] ?? 'Guest';
-            return Reservation.fromMap(map);
-          }).toList();
-
-          _pendingOrders = (orderResponse as List).map((e) {
-            final map = e as Map<String, dynamic>;
-            // ✅ Suntikkan nama tamu ke dalam map sebelum di-parse ke Model
-            map['user_name'] = userNames[map['user_id']] ?? 'Guest';
-            return Order.fromMap(map);
-          }).toList();
-
+          _pendingOrderPayments = enrichedOrders;
+          _pendingReservationPayments = enrichedReservations;
           _isLoading = false;
         });
       }
@@ -110,26 +139,28 @@ class _AdminPaymentVerificationScreenState
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load data: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Failed to load data: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // --- LOGIKA VERIFIKASI RESERVATION (ACCOMMODATION) DENGAN REASON ---
-  Future<void> _handleVerifyReservation(
-    Reservation res,
-    String newStatus,
+  // ✅ LOGIKA VERIFIKASI TERPADU (Mendukung Approve & Revision)
+  Future<void> _handleVerifyPayment(
+    Map<String, dynamic> itemData,
+    String action,
   ) async {
+    final OrderPayment payment = itemData['payment'];
+    final bool isOrder = payment.orderId != null;
+    final String targetId = isOrder ? payment.orderId! : payment.reservationId!;
+    final String tableName = isOrder ? 'orders' : 'reservations';
+    final String docNumber = itemData['title'];
+
     String? rejectionReason;
 
-    // ✅ 1. Jika Admin menekan REVISE (Status tetap 'pending') atau CANCEL
-    if (newStatus == 'pending' || newStatus == 'cancelled') {
+    // --- 1. JIKA REVISION / REJECT ---
+    if (action == 'revision') {
       final reasonController = TextEditingController();
-
       final inputConfirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -180,11 +211,8 @@ class _AdminPaymentVerificationScreenState
         ),
       );
 
-      if (!mounted) return;
-      if (inputConfirmed != true) return;
-
+      if (!mounted || inputConfirmed != true) return;
       rejectionReason = reasonController.text.trim();
-
       if (rejectionReason.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -195,7 +223,7 @@ class _AdminPaymentVerificationScreenState
         return;
       }
     }
-    // ✅ 2. Jika Admin menekan APPROVE (Status: confirmed)
+    // --- 2. JIKA APPROVE ---
     else {
       final confirm = await showDialog<bool>(
         context: context,
@@ -204,7 +232,9 @@ class _AdminPaymentVerificationScreenState
             'Approve Payment?',
             style: TextStyle(fontFamily: 'Playfair Display'),
           ),
-          content: Text('Mark ${res.reservationNumber} as confirmed?'),
+          content: Text(
+            'Mark payment of ${payment.formattedAmount} for $docNumber as verified?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -221,59 +251,123 @@ class _AdminPaymentVerificationScreenState
           ],
         ),
       );
-
-      if (!mounted) return;
-      if (confirm != true) return;
+      if (!mounted || confirm != true) return;
     }
 
-    // ✅ 3. Eksekusi Update ke Database
+    // --- 3. EKSEKUSI UPDATE KE DATABASE ---
     try {
-      Map<String, dynamic> updateData = {'status': newStatus};
+      // A. Update status di tabel order_payments
+      await PaymentService.updatePaymentStatus(
+        payment.id,
+        action == 'revision' ? 'rejected' : 'verified',
+        rejectionReason: rejectionReason,
+      );
 
-      if (rejectionReason != null) {
-        updateData['rejection_reason'] = rejectionReason;
+      // B. Jika APPROVED, cek apakah parent (Order/Reservation) sudah FULLY PAID
+      if (action == 'verified') {
+        final parentData = await Supabase.instance.client
+            .from(tableName)
+            .select('total_amount, status')
+            .eq('id', targetId)
+            .single();
+
+        final totalAmount = parentData['total_amount'] as int;
+
+        // Hitung total yang sudah verified untuk ID ini
+        final verifiedPayments = await Supabase.instance.client
+            .from('order_payments')
+            .select('amount')
+            .eq(isOrder ? 'order_id' : 'reservation_id', targetId)
+            .eq('status', 'verified');
+
+        final totalPaid = (verifiedPayments as List).fold<int>(
+          0,
+          (sum, item) => sum + (item['amount'] as int),
+        );
+
+        // Jika sudah lunas, update status parent menjadi 'confirmed'
+        if (totalPaid >= totalAmount && parentData['status'] != 'confirmed') {
+          await Supabase.instance.client
+              .from(tableName)
+              .update({'status': 'confirmed'})
+              .eq('id', targetId);
+        }
       }
 
-      await Supabase.instance.client
-          .from('reservations')
-          .update(updateData)
-          .eq('id', res.id);
-
-      // ✅ 4. Kirim Email Notifikasi ke User
-      final resData = await Supabase.instance.client
-          .from('reservations')
-          .select('user_id, reservation_number')
-          .eq('id', res.id)
-          .single();
-
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('email, full_name')
-          .eq('id', resData['user_id'])
-          .maybeSingle();
-
-      final userEmail = profile?['email'] as String?;
-      final userName = profile?['full_name'] as String? ?? 'Valued Guest';
-
-      if (userEmail != null && userEmail.isNotEmpty) {
-        EmailService.sendEmail(
-          to: userEmail,
-          subject: newStatus == 'confirmed'
-              ? 'Reservation Confirmed - ${res.reservationNumber}'
-              : 'Reservation Payment Revision - ${res.reservationNumber}',
+      // C. Kirim Email Notifikasi
+      try {
+        if (isOrder) {
+          // Ambil data Order lengkap untuk dikirim ke EmailService
+          final orderData = await Supabase.instance.client
+              .from('orders')
+              .select('*, user_id') // Ambil semua data order + user_id
+              .eq('id', targetId)
+              .single();
           
-          // ✅ PERBAIKAN: Tambahkan 'rejectionReason:' di depan variabelnya
-          htmlContent: EmailService.generateStatusUpdateTemplate(
-            res,
-            userName,
-            newStatus,
-            rejectionReason: rejectionReason, // ✅ Sekarang Dart tahu ini adalah named parameter
-          ),
-        ).then((sent) {
-          if (sent) {
-            print('✅ [ADMIN] Reservation verification email sent to $userEmail');
+          // Ambil profil user
+          final profile = await Supabase.instance.client
+              .from('profiles')
+              .select('email, full_name')
+              .eq('id', orderData['user_id'])
+              .maybeSingle();
+
+          final userEmail = profile?['email'] as String?;
+          final userName = profile?['full_name'] as String? ?? 'Valued Guest';
+
+          if (userEmail != null && userEmail.isNotEmpty) {
+            // Buat object Order sementara dari Map agar kompatibel dengan EmailService Anda
+            final orderObj = Order.fromMap(orderData);
+            
+            EmailService.sendEmail(
+              to: userEmail,
+              subject: action == 'verified' 
+                  ? 'Payment Verified - ${orderObj.orderNumber}' 
+                  : 'Payment Revision Required - ${orderObj.orderNumber}',
+              htmlContent: EmailService.generateStatusUpdateTemplate(
+                orderObj, // ✅ Sekarang kita kirim object Order yang valid
+                userName,
+                action == 'verified' ? 'confirmed' : 'pending',
+                rejectionReason: rejectionReason,
+              ),
+            );
           }
-        });
+        } else {
+          // LOGIKA SAMA UNTUK RESERVATION (Jika Anda punya EmailService untuk Reservation)
+          final resData = await Supabase.instance.client
+              .from('reservations')
+              .select('*, user_id')
+              .eq('id', targetId)
+              .single();
+              
+          final profile = await Supabase.instance.client
+              .from('profiles')
+              .select('email, full_name')
+              .eq('id', resData['user_id'])
+              .maybeSingle();
+
+          final userEmail = profile?['email'] as String?;
+          final userName = profile?['full_name'] as String? ?? 'Valued Guest';
+
+          if (userEmail != null && userEmail.isNotEmpty) {
+            final resObj = Reservation.fromMap(resData);
+            
+            EmailService.sendEmail(
+              to: userEmail,
+              subject: action == 'verified' 
+                  ? 'Payment Verified - ${resObj.reservationNumber}' 
+                  : 'Payment Revision Required - ${resObj.reservationNumber}',
+              htmlContent: EmailService.generateStatusUpdateTemplate(
+                resObj, // ✅ Kirim object Reservation yang valid
+                userName,
+                action == 'verified' ? 'confirmed' : 'pending',
+                rejectionReason: rejectionReason,
+              ),
+            );
+          }
+        }
+      } catch (emailError) {
+        // ✅ FAIL-SAFE: Jika email gagal, jangan gagalkan seluruh proses verifikasi
+        print('⚠️ [ADMIN] Email notification failed, but payment status updated: $emailError');
       }
 
       if (mounted) {
@@ -281,186 +375,13 @@ class _AdminPaymentVerificationScreenState
           SnackBar(
             content: Text(
               rejectionReason != null
-                  ? 'Revision requested. Reason saved.'
-                  : 'Reservation approved successfully!',
+                  ? 'Revision requested.'
+                  : 'Payment verified successfully!',
             ),
             backgroundColor: Colors.green,
           ),
         );
-        _fetchPendingVerifications(); // Refresh data
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  // --- LOGIKA VERIFIKASI ORDER (SERVICES) DENGAN REASON ---
-  // --- LOGIKA VERIFIKASI ORDER (SERVICES) DENGAN REASON ---
-  Future<void> _handleVerifyOrder(Order order, String newStatus) async {
-    String? rejectionReason;
-
-    // ✅ 1. Jika Admin menekan REVISE (Status: pending) atau CANCEL (Status: cancelled)
-    // PASTIKAN KONDISI INI MENANGKAP 'pending'
-    if (newStatus == 'pending' || newStatus == 'cancelled') {
-      final reasonController = TextEditingController();
-
-      final inputConfirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text(
-            'Reason for Revision', // ✅ JUDUL SAMA PERSIS DENGAN ACCOMMODATION
-            style: TextStyle(
-              color: Colors.orange, // ✅ WARNA ORANGE (Bukan Merah)
-              fontFamily: 'Playfair Display',
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Please provide a reason so the guest can re-upload the correct proof:',
-                style: TextStyle(fontFamily: 'Lato', fontSize: 14),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: reasonController,
-                maxLines: 3,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., Transfer amount is incorrect, Proof is blurry',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.all(12),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
-              child: const Text(
-                'Submit Revision',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      );
-
-      if (!mounted) return;
-      if (inputConfirmed != true) return;
-
-      rejectionReason = reasonController.text.trim();
-
-      if (rejectionReason.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reason cannot be empty!'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
-      }
-    } 
-    // ✅ 2. Jika Admin menekan APPROVE (Status: confirmed)
-    else {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text(
-            'Approve Payment?',
-            style: TextStyle(fontFamily: 'Playfair Display'),
-          ),
-          content: Text('Mark ${order.orderNumber} as confirmed?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text(
-                'Yes, Approve',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      );
-
-      if (!mounted) return;
-      if (confirm != true) return;
-    }
-
-    // ✅ 3. Eksekusi Update ke Database
-    try {
-      Map<String, dynamic> updateData = {'status': newStatus};
-
-      if (rejectionReason != null) {
-        updateData['rejection_reason'] = rejectionReason;
-      }
-
-      await Supabase.instance.client
-          .from('orders')
-          .update(updateData)
-          .eq('id', order.id);
-
-      // ✅ 4. Kirim Email Notifikasi
-      final orderData = await Supabase.instance.client
-          .from('orders')
-          .select('user_id, order_number')
-          .eq('id', order.id)
-          .single();
-
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('email, full_name')
-          .eq('id', orderData['user_id'])
-          .maybeSingle();
-
-      final userEmail = profile?['email'] as String?;
-      final userName = profile?['full_name'] as String? ?? 'Valued Guest';
-
-      if (userEmail != null && userEmail.isNotEmpty) {
-        EmailService.sendEmail(
-          to: userEmail,
-          subject: newStatus == 'confirmed'
-              ? 'Booking Confirmed - ${order.orderNumber}'
-              : 'Booking Payment Revision - ${order.orderNumber}',
-          htmlContent: EmailService.generateStatusUpdateTemplate(
-            order,
-            userName,
-            newStatus,
-            rejectionReason: rejectionReason, // ✅ Named parameter
-          ),
-        ).then((sent) {
-          if (sent) {
-            print('✅ [ADMIN] Booking verification email sent to $userEmail');
-          }
-        });
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              rejectionReason != null
-                  ? 'Revision requested. Reason saved.'
-                  : 'Order approved successfully!',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _fetchPendingVerifications(); // Refresh data
+        _fetchPendingVerifications(); // Refresh list
       }
     } catch (e) {
       if (mounted) {
@@ -520,10 +441,11 @@ class _AdminPaymentVerificationScreenState
   }
 
   String _formatPrice(int price) {
-    return price.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]},',
-    );
+    return NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'IDR ',
+      decimalDigits: 0,
+    ).format(price);
   }
 
   @override
@@ -565,37 +487,36 @@ class _AdminPaymentVerificationScreenState
     );
   }
 
-  // ✅ WIDGET LIST ACCOMMODATION
   Widget _buildReservationList() {
-    if (_pendingReservations.isEmpty) {
-      return _buildEmptyState('Accommodation bookings');
-    }
+    if (_pendingReservationPayments.isEmpty)
+      return _buildEmptyState('Accommodation payments');
     return RefreshIndicator(
       onRefresh: _fetchPendingVerifications,
       color: AppColors.primaryGold,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _pendingReservations.length,
+        itemCount: _pendingReservationPayments.length,
         itemBuilder: (context, index) {
-          final res = _pendingReservations[index];
+          final item = _pendingReservationPayments[index];
+          final payment = item['payment'] as OrderPayment;
+          final checkIn = DateTime.parse(item['check_in']);
+          final checkOut = DateTime.parse(item['check_out']);
+
           return _buildVerificationCard(
-            title: res.reservationNumber,
-            guestName: res.guestName ?? 'Guest',
-            subtitle: res.roomName ?? 'Room',
+            title: item['title'],
+            guestName: item['guest_name'],
+            subtitle: item['subtitle'],
             date:
-                '${DateFormat('dd MMM').format(res.checkIn)} - ${DateFormat('dd MMM').format(res.checkOut)}',
-            amount: res.totalAmount,
-            proofUrl: res.paymentProofUrl,
-            onApprove: () => _handleVerifyReservation(res, 'confirmed'),
-            onReject: () => _handleVerifyReservation(
-              res,
-              'pending',
-            ), // Atau 'cancelled' sesuai logika Anda
+                '${DateFormat('dd MMM').format(checkIn)} - ${DateFormat('dd MMM').format(checkOut)}',
+            amount: payment.amount, // ✅ Gunakan amount dari payment, bukan total_amount order
+            proofUrl: payment.paymentProofUrl,
+            onApprove: () => _handleVerifyPayment(item, 'verified'),
+            onReject: () => _handleVerifyPayment(item, 'revision'),
             onTapDetail: () => Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) =>
-                    AdminReservationDetailScreen(reservationId: res.id),
+                    AdminReservationDetailScreen(reservationId: item['id']),
               ),
             ),
           );
@@ -604,38 +525,32 @@ class _AdminPaymentVerificationScreenState
     );
   }
 
-  // ✅ WIDGET LIST SERVICES (BOOKINGS)
   Widget _buildOrderList() {
-    if (_pendingOrders.isEmpty) {
-      return _buildEmptyState('Service bookings');
-    }
+    if (_pendingOrderPayments.isEmpty)
+      return _buildEmptyState('Service payments');
     return RefreshIndicator(
       onRefresh: _fetchPendingVerifications,
       color: AppColors.primaryGold,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _pendingOrders.length,
+        itemCount: _pendingOrderPayments.length,
         itemBuilder: (context, index) {
-          final order = _pendingOrders[index];
-
-          // ✅ AMBIL NAMA ITEM PERTAMA JIKA ADA, JIKA TIDAK PAKAI FALLBACK
-          final firstItem = order.items.isNotEmpty 
-              ? order.items.first.itemName 
-              : 'Service Booking';
+          final item = _pendingOrderPayments[index];
+          final payment = item['payment'] as OrderPayment;
 
           return _buildVerificationCard(
-            title: order.orderNumber,
-            guestName: order.userName ?? 'Guest',
-            subtitle: firstItem,
-            date: DateFormat('dd MMM yyyy').format(order.orderDate),
-            amount: order.totalAmount,
-            proofUrl: order.paymentProofUrl,
-            onApprove: () => _handleVerifyOrder(order, 'confirmed'),
-            onReject: () => _handleVerifyOrder(order, 'pending'),
+            title: item['title'],
+            guestName: item['guest_name'],
+            subtitle: item['subtitle'],
+            date: payment.formattedDate,
+            amount: payment.amount, // ✅ Gunakan amount dari payment
+            proofUrl: payment.paymentProofUrl,
+            onApprove: () => _handleVerifyPayment(item, 'verified'),
+            onReject: () => _handleVerifyPayment(item, 'revision'),
             onTapDetail: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => AdminBookingDetailScreen(orderId: order.id),
+                builder: (_) => AdminBookingDetailScreen(orderId: item['id']),
               ),
             ),
           );
@@ -644,20 +559,17 @@ class _AdminPaymentVerificationScreenState
     );
   }
 
-  // ✅ WIDGET KARTU VERIFIKASI REUSABLE (Agar kode tidak duplikat)
   Widget _buildVerificationCard({
     required String title,
     required String guestName,
     required String subtitle,
     required String date,
     required int amount,
-    required String? proofUrl,
+    required String proofUrl,
     required VoidCallback onApprove,
     required VoidCallback onReject,
     required VoidCallback onTapDetail,
   }) {
-    final hasProof = proofUrl != null && proofUrl.isNotEmpty;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -763,47 +675,30 @@ class _AdminPaymentVerificationScreenState
               ),
             ),
             const SizedBox(height: 8),
-            if (hasProof)
-              GestureDetector(
-                onTap: () => _showProofImage(proofUrl),
-                child: Container(
-                  height: 150,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.primaryGold, width: 1),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(7),
-                    child: Image.network(
-                      proofUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Colors.grey.shade200,
-                        child: const Center(
-                          child: Icon(Icons.broken_image, color: Colors.grey),
-                        ),
+            GestureDetector(
+              onTap: () => _showProofImage(proofUrl),
+              child: Container(
+                height: 150,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.primaryGold, width: 1),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
+                  child: Image.network(
+                    proofUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(Icons.broken_image, color: Colors.grey),
                       ),
                     ),
                   ),
                 ),
-              )
-            else
-              Container(
-                height: 100,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Center(
-                  child: Text(
-                    'No proof uploaded',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
               ),
-
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -823,7 +718,7 @@ class _AdminPaymentVerificationScreenState
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: hasProof ? onApprove : null,
+                    onPressed: onApprove,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -864,7 +759,7 @@ class _AdminPaymentVerificationScreenState
             color: Colors.green.shade300,
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'All caught up!',
             style: TextStyle(
               fontFamily: 'Playfair Display',

@@ -8,7 +8,6 @@ import '../../core/services/order_service.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/shimmer_card.dart';
 
-
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
 
@@ -22,7 +21,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   bool _isLoading = true;
   List<Order> _allOrders = [];
 
- 
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'IDR ',
@@ -288,10 +286,16 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       elevation: 2,
       clipBehavior: Clip.antiAlias, // ✅ OPTIMASI 2: Mencegah ripple effect "bocor" & menghemat rendering GPU
       child: InkWell(
-        onTap: () {
-          context.push('/booking-detail/${order.id}').then((_) {
-            _fetchOrders(); // ✅ Auto-refresh
-          });
+        // ✅ PERBAIKAN: Gunakan async/await agar lebih stabil dan pasti ter-eksekusi
+        onTap: () async {
+          // 1. Buka halaman detail dan TUNGGU sampai user kembali (pop)
+          await context.push('/booking-detail/${order.id}');
+
+          // 2. Setelah kembali, pastikan widget masih ada di layar
+          if (mounted) {
+            // 3. Paksa ambil data terbaru dari database
+            await _fetchOrders();
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(16),

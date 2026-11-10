@@ -229,34 +229,26 @@ class OrderService {
   }
 
   /// ✅ Ambil semua order milik user (List View - Ringan & Aman dari RLS)
+  // ✅ METHOD YANG BENAR: Mengambil SEMUA order milik user, berapapun statusnya
   static Future<List<Order>> getUserOrders() async {
-    final userId = AuthService.currentUserId;
-    if (userId == null) return [];
-
     try {
-      // ✅ PENTING: Ganti 'order_items' dengan nama tabel anak Anda di Supabase jika berbeda (misal: 'items')
+      final userId = AuthService
+          .currentUserId; // Pastikan Anda punya method ini untuk dapat ID user
+      if (userId == null) return [];
+
+      // ⚠️ PENTING: Jangan gunakan .eq('status', 'pending') di sini!
+      // Biarkan kosong agar mengambil semua status (pending, confirmed, completed, cancelled)
       final response = await Supabase.instance.client
           .from('orders')
           .select(
-            'id, user_id, order_number, status, total_amount, discount_amount, voucher_discount_amount, promo_code, order_date, created_at, updated_at, order_items(*)',
-          )
+            '*, order_items(*)',
+          ) // Sesuaikan join jika Anda punya tabel order_items
           .eq('user_id', userId)
-          .order('order_date', ascending: false);
+          .order('created_at', ascending: false); // Urutkan dari yang terbaru
 
-      return (response as List).map((item) {
-        final map = item as Map<String, dynamic>;
-        
-        // ✅ 1. Parse items terlebih dahulu menggunakan fromMap (sesuai model Anda)
-        final List<OrderItem> parsedItems = (map['order_items'] as List?)
-            ?.map((e) => OrderItem.fromMap(e as Map<String, dynamic>))
-            .toList() ?? [];
-
-        // ✅ 2. Masukkan parsedItems ke dalam Order.fromMap
-        return Order.fromMap(map, items: parsedItems);
-        
-      }).toList();
+      return (response as List).map((e) => Order.fromMap(e)).toList();
     } catch (e) {
-      print('❌ [ORDER] Error fetching user orders: $e');
+      print('❌ [ORDER SERVICE] Gagal mengambil data order user: $e');
       return [];
     }
   }
@@ -512,33 +504,33 @@ class OrderService {
   /// ✅ METHOD: Menandai Order/Booking Service sebagai Completed
   static Future<bool> completeOrder(String orderId) async {
     try {
-      // 1. Ambil data order
+      // 1. Fetch order data
       final orderData = await Supabase.instance.client
           .from('orders')
           .select('user_id, total_amount, order_number')
           .eq('id', orderId)
           .single();
 
-      // 2. Deklarasikan variabel dengan NULL-SAFE (Menggunakan ?.toString() ?? '')
+      // 2. Declare variables with NULL-SAFE fallback
       final userId = orderData['user_id']?.toString() ?? '';
       final totalAmount = (orderData['total_amount'] as num?)?.toInt() ?? 0;
 
-      // ✅ PERBAIKAN: Jika order_number null, gunakan teks 'Booking Anda'
+      // ✅ FIX: If order_number is null, use fallback text
       final orderNumber =
-          orderData['order_number']?.toString() ?? 'Booking Anda';
+          orderData['order_number']?.toString() ?? 'Your Booking';
 
       if (userId.isEmpty) {
-        print('❌ [Order] User ID kosong, tidak bisa melanjutkan.');
+        print('❌ [Order] User ID is empty, cannot proceed.');
         return false;
       }
 
-      // 3. Update status menjadi completed
+      // 3. Update status to completed
       await Supabase.instance.client
           .from('orders')
           .update({'status': 'completed'})
           .eq('id', orderId);
 
-      // 4. Berikan Loyalty Points
+      // 4. Award Loyalty Points
       await LoyaltyService.awardPoints(
         userId: userId,
         amount: totalAmount,
@@ -547,7 +539,7 @@ class OrderService {
         quantity: 1,
       );
 
-      // 5. Update Counter total_services (+1 per booking)
+      // 5. Update total_services counter (+1 per booking)
       final profile = await Supabase.instance.client
           .from('profiles')
           .select('total_services')
@@ -560,17 +552,17 @@ class OrderService {
           .update({'total_services': currentServices + 1})
           .eq('id', userId);
 
-      // 6. ✅ Kirim Notifikasi ke User
+      // 6. ✅ Send Notification to User
       await NotificationService.createNotification(
         userId: userId,
-        title: 'Booking Selesai! 🎉',
+        title: 'Booking Completed! 🎉',
         message:
-            'Terima kasih telah menikmati layanan The Mulia Bali. Poin loyalitas untuk order $orderNumber telah ditambahkan ke akun Anda.',
+            'Thank you for enjoying The Mulia Bali services. Loyalty points for order $orderNumber have been added to your account.',
         type: 'booking',
       );
 
       print(
-        '✅ [Order] Berhasil menyelesaikan order $orderId. Status, Poin, Counter, & Notifikasi diupdate.',
+        '✅ [Order] Successfully completed order $orderId. Status, Points, Counter, & Notification updated.',
       );
       return true;
     } catch (e) {

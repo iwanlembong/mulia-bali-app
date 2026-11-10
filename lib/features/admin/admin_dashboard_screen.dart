@@ -185,32 +185,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  // ✅ VERSI DASHBOARD: Hanya menghitung JUMLAH pembayaran pending untuk badge
   Future<void> _fetchPendingVerifications() async {
     try {
-      final resResponse = await Supabase.instance.client
-          .from('reservations')
+      // ✅ BARU & TERPUSAT: Hitung langsung dari tabel order_payments
+      // Ini jauh lebih akurat daripada mengecek 2 tabel terpisah (orders & reservations)
+      final response = await Supabase.instance.client
+          .from('order_payments')
           .select('id')
           .eq('status', 'pending')
-          .isFilter('rejection_reason', null)
-          .not('payment_proof_url', 'is', null)
-          .limit(1000);
-
-      final orderResponse = await Supabase.instance.client
-          .from('orders')
-          .select('id')
-          .eq('status', 'pending')
-          .isFilter('rejection_reason', null)
-          .not('payment_proof_url', 'is', null)
-          .limit(1000);
+          .limit(1000); // Limit agar query tetap super ringan dan tidak bikin crash
 
       if (mounted) {
         setState(() {
-          _pendingVerificationCount =
-              ((resResponse as List).length) + ((orderResponse as List).length);
+          _pendingVerificationCount = (response as List).length;
         });
       }
     } catch (e) {
-      print('❌ Error fetching pending verifications: $e');
+      print('❌ Error fetching pending verifications count: $e');
     }
   }
 

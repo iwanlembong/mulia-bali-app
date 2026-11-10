@@ -4,8 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order_model.dart';
+import '../../core/models/payment_model.dart';
 import '../../core/services/order_service.dart';
 import '../../core/services/email_service.dart';
+import '../../core/services/payment_service.dart';
 
 class AdminBookingDetailScreen extends StatefulWidget {
   final String orderId;
@@ -20,6 +22,10 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
   bool _isLoading = true;
   Order? _order;
   bool _isUpdating = false;
+
+  // ✅ BARU: State untuk menampilkan riwayat pembayaran di Admin
+  List<OrderPayment> _adminPayments = [];
+  bool _isLoadingAdminPayments = true;
 
   String? _selectedWeddingStatus;
   final List<String> _weddingStatusOptions = [
@@ -51,12 +57,27 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
     if (mounted) {
       setState(() {
         _order = order;
-
-        // ✅ PERBAIKAN: Gunakan tanda titik (.) dan tanda tanya (?) untuk null-safety
-        // Pastikan nama property di model Order Anda adalah 'weddingStatus' atau 'wedding_status'
         _selectedWeddingStatus = order?.weddingStatus ?? 'Pending Inquiry';
+        _isLoading = false; // Loading utama selesai
+      });
 
-        _isLoading = false;
+      // ✅ PANGGIL FETCH PAYMENTS DI SINI (Setelah _order pasti sudah terisi)
+      if (_order != null) {
+        _fetchAdminPayments();
+      }
+    }
+  }
+
+  Future<void> _fetchAdminPayments() async {
+    if (_order == null) return;
+    setState(() => _isLoadingAdminPayments = true);
+
+    final payments = await PaymentService.getPaymentsByOrderId(_order!.id);
+
+    if (mounted) {
+      setState(() {
+        _adminPayments = payments;
+        _isLoadingAdminPayments = false;
       });
     }
   }
@@ -333,7 +354,7 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
     }
 
     // ✅ 2. Ambil data diskon saat ini (jika ada)
-    final currentDiscount = _order!.discountAmount ?? 0;
+    final currentDiscount = _order!.discountAmount;
 
     // Hitung harga asli (sebelum diskon) untuk kalkulasi yang akurat
     final originalTotal = (_order!.totalAmount) + currentDiscount;
@@ -671,134 +692,180 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
 
             // ✅ BARU: Detail & Status Khusus Wedding (Muncul HANYA jika ada item wedding)
             if (_order!.items.any((item) => item.itemType == 'wedding')) ...[
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.pink.shade50, // Warna soft pink khas wedding
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.pink.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.favorite,
-                          color: Colors.pink.shade600,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Wedding Inquiry Details',
-                          style: TextStyle(
-                            fontFamily: 'Playfair Display',
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkCharcoal,
+              // ✅ HANYA TAMPILKAN JIKA ORDER MASIH PENDING (BELUM LUNAS/CONFIRMED)
+              if (_order!.status == 'pending') ...[
+                const SizedBox(height: 24),
+
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.pink.shade50, // Warna soft pink khas wedding
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.pink.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.favorite,
+                            color: Colors.pink.shade600,
+                            size: 20,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 📅 Tanggal Acara (Ambil dari Order atau fallback ke Metadata)
-                    _buildInfoRow(
-                      'Event Date',
-                      _order!.eventDate != null
-                          ? DateFormat('dd MMMM yyyy')
-                                .format(DateTime.parse(_order!.eventDate!))
-                          : (_order!.items
-                                    .firstWhere((i) => i.itemType == 'wedding')
-                                    .metadata['event_date'] ??
-                                'Not specified'),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // 👥 Jumlah Tamu
-                    _buildInfoRow(
-                      'Estimated Guests',
-                      _order!.guestCount != null
-                          ? '${_order!.guestCount} Guests'
-                          : (_order!.items
-                                        .firstWhere(
-                                          (i) => i.itemType == 'wedding',
-                                        )
-                                        .metadata['guests'] !=
-                                    null
-                                ? '${_order!.items.firstWhere((i) => i.itemType == 'wedding').metadata['guests']} Guests'
-                                : 'Not specified'),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // 🔄 Dropdown Ubah Status Wedding
-                    const Text(
-                      'Update Wedding Status',
-                      style: TextStyle(
-                        fontFamily: 'Lato',
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _selectedWeddingStatus,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      items: _weddingStatusOptions.map((String status) {
-                        return DropdownMenuItem<String>(
-                          value: status,
-                          child: Text(
-                            status,
-                            style: const TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Wedding Inquiry Details',
+                            style: TextStyle(
+                              fontFamily: 'Playfair Display',
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkCharcoal,
                             ),
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null &&
-                            newValue != _selectedWeddingStatus) {
-                          _updateWeddingStatus(newValue);
-                        }
-                      },
-                    ),
+                        ],
+                      ),
 
-                    const SizedBox(height: 16),
-                    // ✅ TOMBOL KHUSUS ADMIN: APPLY DISCOUNT
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _applyDiscount,
-                        icon: const Icon(
-                          Icons.local_offer,
-                          color: Colors.purple,
-                        ),
-                        label: const Text(
-                          'Apply Custom Discount',
-                          style: TextStyle(
-                            color: Colors.purple,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.purple),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                      const SizedBox(height: 16),
+
+                      // 📅 Tanggal Acara (Ambil dari Order atau fallback ke Metadata)
+                      _buildInfoRow(
+                        'Event Date',
+                        _order!.eventDate != null
+                            ? DateFormat('dd MMMM yyyy')
+                                  .format(DateTime.parse(_order!.eventDate!))
+                            : (_order!.items
+                                      .firstWhere(
+                                        (i) => i.itemType == 'wedding',
+                                      )
+                                      .metadata['event_date'] ??
+                                  'Not specified'),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // 👥 Jumlah Tamu
+                      _buildInfoRow(
+                        'Estimated Guests',
+                        _order!.guestCount != null
+                            ? '${_order!.guestCount} Guests'
+                            : (_order!.items
+                                          .firstWhere(
+                                            (i) => i.itemType == 'wedding',
+                                          )
+                                          .metadata['guests'] !=
+                                      null
+                                  ? '${_order!.items.firstWhere((i) => i.itemType == 'wedding').metadata['guests']} Guests'
+                                  : 'Not specified'),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // 🔄 Dropdown Ubah Status Wedding
+                      const Text(
+                        'Update Wedding Status',
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _selectedWeddingStatus,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        items: _weddingStatusOptions.map((String status) {
+                          return DropdownMenuItem<String>(
+                            value: status,
+                            child: Text(
+                              status,
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 13,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null &&
+                              newValue != _selectedWeddingStatus) {
+                            _updateWeddingStatus(newValue);
+                          }
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+                      // ✅ TOMBOL KHUSUS ADMIN: APPLY DISCOUNT
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _applyDiscount,
+                          icon: const Icon(
+                            Icons.local_offer,
+                            color: Colors.purple,
+                          ),
+                          label: const Text(
+                            'Apply Custom Discount',
+                            style: TextStyle(
+                              color: Colors.purple,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.purple),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ] else
+                // ✅ JIKA SUDAH CONFIRMED/COMPLETED, TAMPILKAN PESAN INI
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.lock_outline, color: Colors.green, size: 24),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Booking Confirmed',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                                fontSize: 14,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Negotiation and payment adjustments are locked.',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
 
             const SizedBox(height: 24),
@@ -913,6 +980,119 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: 24),
+
+                  // ✅ RIWAYAT PEMBAYARAN (KHUSUS ADMIN)
+                  const Text(
+                    'Payment History',
+                    style: TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  if (_isLoadingAdminPayments)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (_adminPayments.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'No payments recorded yet.',
+                        style: TextStyle(color: AppColors.textGrey),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    ..._adminPayments
+                        .map(
+                          (payment) => Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  payment.isVerified
+                                      ? Icons.check_circle
+                                      : (payment.isRejected
+                                            ? Icons.cancel
+                                            : Icons.hourglass_empty),
+                                  color: payment.statusColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${payment.paymentType} • ${payment.formattedDate}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      Text(
+                                        payment.formattedAmount,
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      if (payment.isRejected &&
+                                          payment.rejectionReason != null)
+                                        Text(
+                                          'Note: ${payment.rejectionReason}',
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 11,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: payment.statusColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    payment.statusLabel,
+                                    style: TextStyle(
+                                      color: payment.statusColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
                 ],
               ),
             ),

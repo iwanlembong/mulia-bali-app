@@ -121,7 +121,7 @@ class OrderService {
             'voucher_discount_amount':
                 voucherDiscount, // ✅ Nominal diskon dari voucher
             'payment_method': null, // ✅ BARU: Persiapan untuk payment screen
-            'payment_proof_url': null, // ✅ BARU: Persiapan untuk payment screen
+            'created_at': DateTime.now().toIso8601String(),
           })
           .select()
           .single();

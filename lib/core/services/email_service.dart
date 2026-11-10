@@ -187,6 +187,7 @@ class EmailService {
   }
 
   /// ✅ TEMPLATE BARU: Reservasi Kamar (Saat Booking Berhasil)
+    /// ✅ TEMPLATE BARU: Reservasi Kamar (Saat Booking Berhasil) - DIPERBAIKI
   static String generateReservationConfirmationTemplate(
     Reservation res,
     String guestName,
@@ -203,7 +204,24 @@ class EmailService {
           .content { padding: 30px; color: #333; }
           .res-number { background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
           .res-number span { font-size: 20px; font-weight: bold; color: #2C2C2C; }
-          .detail-row { display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+          .detail-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 16px; 
+            border-bottom: 1px solid #eee; 
+            padding-bottom: 12px; 
+          }
+          .detail-label {
+            color: #666;
+            font-size: 14px;
+            flex: 1;
+          }
+          .detail-value {
+            font-weight: bold;
+            color: #333;
+            text-align: right;
+            flex: 1;
+          }
           .footer { background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #666; }
         </style>
       </head>
@@ -224,25 +242,27 @@ class EmailService {
 
             <h3 style="border-bottom: 2px solid #D4AF37; padding-bottom: 8px; display: inline-block;">Stay Details</h3>
             
-            <div class="detail-row">
-              <span style="color: #666;">Room Type</span>
-              <strong>${res.roomName ?? 'Standard Room'}</strong>
-            </div>
-            <div class="detail-row">
-              <span style="color: #666;">Check-in</span>
-              <strong>${DateFormat('dd MMM yyyy').format(res.checkIn)}</strong>
-            </div>
-            <div class="detail-row">
-              <span style="color: #666;">Check-out</span>
-              <strong>${DateFormat('dd MMM yyyy').format(res.checkOut)}</strong>
-            </div>
-            <div class="detail-row">
-              <span style="color: #666;">Duration</span>
-              <strong>${res.nights} Night${res.nights > 1 ? 's' : ''}</strong>
-            </div>
-            <div class="detail-row" style="border-bottom: none; margin-top: 20px;">
-              <span style="font-size: 16px; font-weight: bold;">TOTAL AMOUNT</span>
-              <strong style="font-size: 18px; color: #D4AF37;">IDR ${_formatCurrency(res.totalAmount)}</strong>
+            <div style="margin-top: 20px;">
+              <div class="detail-row">
+                <span class="detail-label">Room Type:</span>
+                <span class="detail-value">${res.roomName ?? 'Standard Room'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Check-in:</span>
+                <span class="detail-value">${DateFormat('dd MMMM yyyy').format(res.checkIn)}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Check-out:</span>
+                <span class="detail-value">${DateFormat('dd MMMM yyyy').format(res.checkOut)}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Duration:</span>
+                <span class="detail-value">${res.nights} Night${res.nights > 1 ? 's' : ''}</span>
+              </div>
+              <div class="detail-row" style="border-bottom: none; margin-top: 24px; padding-top: 16px; border-top: 2px solid #D4AF37;">
+                <span class="detail-label" style="font-size: 16px; font-weight: bold; color: #333;">TOTAL AMOUNT:</span>
+                <span class="detail-value" style="font-size: 20px; color: #D4AF37;">IDR ${_formatCurrency(res.totalAmount)}</span>
+              </div>
             </div>
 
             <p style="margin-top: 30px; font-size: 14px; color: #666;">

@@ -64,42 +64,66 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
       // 4. Ambil Nama Item dari masing-masing tabel
       Map<String, String> itemNames = {}; // Key: item_id, Value: item_name
+      
       for (var entry in itemsByType.entries) {
         String type = entry.key;
         List<String> ids = entry.value;
 
         String tableName = '';
-        String nameColumn = 'name'; // Sesuaikan jika kolom nama Anda 'title' atau 'package_name'
+        String nameColumn = 'name';
 
         switch (type) {
           case 'property':
             tableName = 'properties';
+            nameColumn = 'name'; // atau 'property_name'
             break;
           case 'spa':
-            tableName = 'spa_services'; // Sesuaikan dengan nama tabel spa Anda
+            tableName = 'spa_services';
+            nameColumn = 'name'; // atau 'service_name'
             break;
           case 'dining':
-            tableName =
-                'restaurants'; // Sesuaikan dengan nama tabel dining Anda
+            // ✅ PRIORITAS 1: Coba ambil dari menu_items dulu
+            tableName = 'menu_items';
+            nameColumn = 'name'; // atau 'dish_name' atau 'menu_name'
             break;
           case 'wedding':
-            tableName =
-                'wedding_packages'; // Sesuaikan dengan nama tabel wedding Anda
+            tableName = 'wedding_packages';
+            nameColumn = 'name'; // atau 'package_name'
             break;
         }
 
         if (tableName.isNotEmpty) {
           try {
+            print(' [DEBUG] Mencari nama untuk $type di tabel $tableName dengan IDs: $ids');
+            
             final res = await Supabase.instance.client
                 .from(tableName)
                 .select('id, $nameColumn')
                 .inFilter('id', ids);
 
+            print('✅ [DEBUG] Ditemukan ${res.length} item dari $tableName');
+
             for (var item in (res as List)) {
               itemNames[item['id']] = item[nameColumn] ?? 'Unknown Item';
+              print('   - ${item['id']}: ${item[nameColumn]}');
             }
+            
+            // ✅ FALLBACK: Jika tidak ada hasil dari menu_items, coba cari di restaurants
+            if (type == 'dining' && res.isEmpty) {
+              print('⚠️ [DEBUG] Tidak ditemukan di menu_items, mencoba di restaurants...');
+              final restaurantRes = await Supabase.instance.client
+                  .from('restaurants')
+                  .select('id, name')
+                  .inFilter('id', ids);
+              
+              for (var item in (restaurantRes as List)) {
+                itemNames[item['id']] = item['name'] ?? 'Unknown Restaurant';
+                print('   - Found in restaurants: ${item['id']}: ${item['name']}');
+              }
+            }
+            
           } catch (e) {
-            print('⚠️ [ADMIN] Gagal mengambil nama untuk $type: $e');
+            print('❌ [ADMIN] Gagal mengambil nama untuk $type dari $tableName: $e');
           }
         }
       }

@@ -422,8 +422,9 @@ class OrderService {
   }
 
   /// ✅ Ambil semua orders (untuk Admin List View)
-  static Future<List<Order>> getAllOrders({String? statusFilter}) async {
+    static Future<List<Order>> getAllOrders({String? statusFilter}) async {
     try {
+      // 1. Ambil semua data orders terlebih dahulu
       var query = Supabase.instance.client.from('orders').select('*');
       if (statusFilter != null) {
         query = query.eq('status', statusFilter);
@@ -432,28 +433,53 @@ class OrderService {
       final response = await query.order('order_date', ascending: false);
       final ordersList = response as List;
 
+      // 2. Kumpulkan semua user_id unik dari list order
+      final userIds = ordersList
+          .map((item) => item['user_id'] as String)
+          .toSet()
+          .toList();
+
+      // 3. Fetch data profiles berdasarkan user_id yang unik
+      Map<String, String> userNames = {};
+      Map<String, String> userEmails = {};
+      
+      if (userIds.isNotEmpty) {
+        final profilesResponse = await Supabase.instance.client
+            .from('profiles')
+            .select('id, full_name, email')
+            .inFilter('id', userIds);
+        
+        for (var profile in profilesResponse) {
+          userNames[profile['id']] = profile['full_name'] ?? 'Guest User';
+          userEmails[profile['id']] = profile['email'] ?? 'No Email';
+        }
+      }
+
+      // 4. Map data ke Model Order dengan nama & email yang sudah digabungkan
       return ordersList.map((item) {
         final map = item as Map<String, dynamic>;
+        final userId = map['user_id'] as String;
+
         return Order(
           id: map['id'],
-          userId: map['user_id'],
+          userId: userId,
           orderNumber: map['order_number'],
           status: map['status'] ?? 'pending',
           totalAmount: map['total_amount'] ?? 0,
-          discountAmount:
-              (map['discount_amount'] as num?)?.toInt() ?? 0, // ✅ AMBIL DISKON
-          voucherDiscountAmount:
-              (map['voucher_discount_amount'] as num?)?.toInt() ??
-              0, // ✅ AMBIL VOUCHER
-          promoCode: map['promo_code'] as String?, // ✅ AMBIL PROMO CODE
+          discountAmount: (map['discount_amount'] as num?)?.toInt() ?? 0,
+          voucherDiscountAmount: (map['voucher_discount_amount'] as num?)?.toInt() ?? 0,
+          promoCode: map['promo_code'] as String?,
           orderDate: DateTime.parse(map['order_date']),
           createdAt: DateTime.parse(map['created_at']),
           updatedAt: DateTime.parse(map['updated_at']),
           items: [],
-          userName: 'Guest User',
-          userEmail: 'No Email',
-          paymentMethod: map['payment_method'] as String?, // ✅ BARU
-          paymentProofUrl: map['payment_proof_url'] as String?, // ✅ BARU
+          
+          // ✅ GUNAKAN DATA DARI MAP, BUKAN HARDCODE
+          userName: userNames[userId] ?? 'Guest User',
+          userEmail: userEmails[userId] ?? 'No Email',
+          
+          paymentMethod: map['payment_method'] as String?,
+          paymentProofUrl: map['payment_proof_url'] as String?,
         );
       }).toList();
     } catch (e) {

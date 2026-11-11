@@ -138,26 +138,61 @@ class _DiningDetailScreenState extends State<DiningDetailScreen> {
     }
   }
 
-  // ✅ 1. Fetch Reviews
+  // ✅ 1. Fetch Reviews (Menggunakan ReviewService - Clean Architecture)
   Future<void> _fetchReviews() async {
     setState(() => _isLoadingReviews = true);
 
-    final avgRating = await ReviewService.getAverageRating(
-      'dining',
-      widget.restaurantId,
-    );
-    final reviews = await ReviewService.getReviews(
-      'dining',
-      widget.restaurantId,
-    );
+    try {
+      // 1. Ambil daftar menu items dari restoran ini
+      final menuItems = _menuItems.isNotEmpty
+          ? _menuItems
+          : await RestaurantService.getMenuItemsByRestaurantId(
+              widget.restaurantId,
+            );
 
-    if (mounted) {
-      setState(() {
-        _averageRating = avgRating;
-        _totalReviews = reviews.length;
-        _reviews = reviews;
-        _isLoadingReviews = false;
-      });
+      // 2. Ambil semua ID menu sebagai List
+      final menuItemIds = menuItems
+          .map((item) => item['id'] as String)
+          .toList();
+
+      if (menuItemIds.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _averageRating = 0.0;
+            _totalReviews = 0;
+            _reviews = [];
+            _isLoadingReviews = false;
+          });
+        }
+        return;
+      }
+
+      // 3. PANGGIL REVIEW SERVICE (UI tidak perlu tahu detail query database)
+      final avgRating = await ReviewService.getAverageRatingByItemIds(
+        menuItemIds,
+      );
+      final reviews = await ReviewService.getReviewsByItemIds(menuItemIds);
+
+      if (mounted) {
+        setState(() {
+          _averageRating = avgRating;
+          _totalReviews = reviews.length;
+          _reviews =
+              reviews; // List ini sudah punya 'user_name' dari ReviewService
+          _isLoadingReviews = false;
+        });
+        print('✅ [DINING UI] Berhasil memuat $_totalReviews approved reviews.');
+      }
+    } catch (e) {
+      print('❌ [DINING UI] Error fetching reviews via service: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingReviews = false;
+          _reviews = [];
+          _totalReviews = 0;
+          _averageRating = 0.0;
+        });
+      }
     }
   }
 
@@ -904,6 +939,7 @@ class _DiningDetailScreenState extends State<DiningDetailScreen> {
 
           ..._reviews.map((review) {
             final userName = review['user_name'] ?? 'Valued Guest'; // ✅ Menggunakan user_name yang sudah digabungkan di service
+            final menuName = review['menu_name'] ?? 'Unknown Menu'; // ✅ BARU
             final comment = review['comment'] ?? '';
             final rating = review['rating'] as int;
             final date = DateTime.parse(review['created_at']);
@@ -951,6 +987,17 @@ class _DiningDetailScreenState extends State<DiningDetailScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Reviewed: $menuName', // ✅ BARU: Tampilkan nama menu
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 11,
+                                color: Color(0xFF6B8E23), // Warna hijau dining
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
                             Text(
                               DateFormat('dd MMM yyyy').format(date),
                               style: const TextStyle(

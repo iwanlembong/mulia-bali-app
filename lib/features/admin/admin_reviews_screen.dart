@@ -87,8 +87,8 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             nameColumn = 'name'; // atau 'dish_name' atau 'menu_name'
             break;
           case 'wedding':
-            tableName = 'wedding_packages';
-            nameColumn = 'name'; // atau 'package_name'
+            tableName = 'weddings';
+            nameColumn = 'package_name'; // atau 'package_name'
             break;
         }
 

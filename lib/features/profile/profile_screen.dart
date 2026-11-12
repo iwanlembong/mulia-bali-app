@@ -26,22 +26,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   int _points = 0;
   int _totalStays = 0;
-  int _totalServices =
-      0; // ✅ BARU: Untuk tracking booking layanan (Spa, Dining, dll)
+  int _totalServices = 0;
   int _upcomingStays = 0;
 
   String? _avatarUrl;
   bool _isUploading = false;
 
+  // ✅ HELPER: Parse Int dengan Aman (Mencegah Crash jika database kirim String)
+  int _safeParseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
   // ✅ HELPER: Tentukan Warna berdasarkan Tier
   Color get _tierColor {
     switch (_membership.toUpperCase()) {
       case 'DIAMOND':
-        return Colors.cyan.shade300; // Warna berlian yang elegan
+        return Colors.cyan.shade300;
       case 'GOLD':
-        return AppColors.primaryGold; // Warna emas premium
+        return AppColors.primaryGold;
       case 'SILVER':
-        return Colors.blueGrey.shade400; // Warna perak yang modern
+        return Colors.blueGrey.shade400;
       default:
         return Colors.grey;
     }
@@ -53,18 +61,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case 'DIAMOND':
         return Icons.diamond;
       case 'GOLD':
-        return Icons.workspace_premium; // Ikon piala/medali emas
+        return Icons.workspace_premium;
       case 'SILVER':
-        return Icons.stars; // Ikon bintang perak
+        return Icons.stars;
       default:
         return Icons.shield;
     }
   }
 
-  // ✅ HELPER: Format Teks agar selalu rapi (misal: "SILVER MEMBER")
+  // ✅ HELPER: Format Teks agar selalu rapi
   String get _formattedMembership {
     final tier = _membership.toUpperCase().replaceAll(' MEMBER', '').trim();
     return '$tier MEMBER';
+  }
+
+  // ✅ HELPER: Dapatkan Nama Tier Berikutnya
+  String _getNextTier() {
+    switch (_membership.toUpperCase()) {
+      case 'SILVER':
+        return 'GOLD';
+      case 'GOLD':
+        return 'DIAMOND';
+      case 'DIAMOND':
+        return 'DIAMOND';
+      default:
+        return 'GOLD';
+    }
+  }
+
+  // ✅ HELPER: Hitung Sisa Poin untuk Tier Berikutnya
+  String _getPointsToNextTier() {
+    int targetPoints = 0;
+    switch (_membership.toUpperCase()) {
+      case 'SILVER':
+        targetPoints = 5000;
+        break;
+      case 'GOLD':
+        targetPoints = 15000;
+        break;
+      case 'DIAMOND':
+        return '0';
+      default:
+        targetPoints = 5000;
+    }
+
+    int needed = targetPoints - _points;
+    if (needed <= 0) return '0';
+
+    return needed.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
   }
 
   Future<void> _uploadAvatar() async {
@@ -155,7 +202,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final response = await Supabase.instance.client
           .from('profiles')
-          // ✅ BARU: Tambahkan 'total_services' ke dalam select
           .select(
             'full_name, email, membership_tier, points, total_stays, total_services, upcoming_stays, avatar_url',
           )
@@ -167,11 +213,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _fullName = response['full_name'] ?? 'Guest User';
           _email = response['email'] ?? 'No Email';
           _membership = response['membership_tier'] ?? 'SILVER';
-          _points = (response['points'] as num?)?.toInt() ?? 0;
-          _totalStays = (response['total_stays'] as num?)?.toInt() ?? 0;
-          _totalServices =
-              (response['total_services'] as num?)?.toInt() ?? 0; // ✅ BARU
-          _upcomingStays = (response['upcoming_stays'] as num?)?.toInt() ?? 0;
+
+          // ✅ PERBAIKAN KRITIS: Gunakan _safeParseInt agar tidak crash
+          _points = _safeParseInt(response['points']);
+          _totalStays = _safeParseInt(response['total_stays']);
+          _totalServices = _safeParseInt(response['total_services']);
+          _upcomingStays = _safeParseInt(response['upcoming_stays']);
+
           _avatarUrl = response['avatar_url'];
           _isLoading = false;
         });
@@ -202,8 +250,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SliverAppBar(
             expandedHeight: 220,
             pinned: true,
-
-            // ✅ TAMBAHKAN BAGIAN ACTIONS DI SINI
             actions: [
               Stack(
                 clipBehavior: Clip.none,
@@ -215,17 +261,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       size: 28,
                     ),
                     onPressed: () {
-                      // ✅ PERBAIKAN: Tambahkan .then() untuk refresh saat kembali
                       context.push('/notifications').then((_) {
-                        // Saat kembali dari halaman Notifikasi, paksa Profile rebuild
-                        // agar FutureBuilder menghitung ulang jumlah notifikasi belum dibaca
-                        if (mounted) {
-                          setState(() {});
-                        }
+                        if (mounted) setState(() {});
                       });
                     },
                   ),
-                  // ✅ Badge Merah Dinamis (Mengambil data dari NotificationService)
                   FutureBuilder<int>(
                     future: NotificationService.getUnreadCount(),
                     builder: (context, snapshot) {
@@ -250,15 +290,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         );
                       }
-                      return const SizedBox.shrink(); // Sembunyikan jika 0
+                      return const SizedBox.shrink();
                     },
                   ),
                 ],
               ),
-              const SizedBox(width: 8), // Jarak aman dari tepi kanan layar
+              const SizedBox(width: 8),
             ],
-            // ✅ AKHIR DARI ACTIONS
-
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 color: AppColors.darkCharcoal,
@@ -341,17 +379,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // ✅ PENGGANTI GRIDVIEW: Menggunakan Column & Row (100% Anti-Crash)
+                  // Statistik
                   Column(
                     children: [
                       Row(
                         children: [
                           Expanded(
-                            child: _buildStatCard(
-                              'Points',
-                              _points.toString(),
-                              Icons.star_rounded,
-                              AppColors.primaryGold,
+                            child: InkWell(
+                              // ✅ UBAH MENJADI INK WELL AGAR BISA DIKLIK
+                              onTap: () {
+                                // Nanti kita arahkan ke halaman History Poin
+                                // context.push('/points-history');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Points History coming soon!',
+                                    ),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: _buildStatCard(
+                                'Points',
+                                _points.toString(),
+                                Icons.star_rounded,
+                                AppColors.primaryGold,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -389,10 +442,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 32),
 
-                  // ✅ Current Tier Card (DINAMIS)
+                  // ✅ Current Tier Card (DIPERBAIKI: Tambahkan Expanded untuk mencegah Overflow)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -401,56 +453,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: _tierColor.withOpacity(
-                            0.15,
-                          ), // Shadow mengikuti warna tier
+                          color: _tierColor.withOpacity(0.15),
                           blurRadius: 15,
                           offset: const Offset(0, 5),
                         ),
                       ],
                       border: Border.all(
-                        color: _tierColor.withOpacity(
-                          0.3,
-                        ), // Border tipis sesuai warna tier
+                        color: _tierColor.withOpacity(0.3),
                         width: 1,
                       ),
                     ),
                     child: Row(
                       children: [
-                        // ✅ Ikon dan Warna Dinamis
                         Icon(_tierIcon, color: _tierColor, size: 40),
                         const SizedBox(width: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Current Tier',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 12,
-                                color: Colors.white70,
-                                letterSpacing: 1.5,
-                                fontWeight: FontWeight.w600,
+                        Expanded(
+                          // ✅ INI YANG MENCEGAH RENDERFLEX OVERFLOW
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Current Tier',
+                                style: TextStyle(
+                                  fontFamily: 'Lato',
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                  letterSpacing: 1.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            // ✅ Teks Dinamis
-                            Text(
-                              _formattedMembership,
-                              style: TextStyle(
-                                fontFamily: 'Playfair Display',
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: _tierColor, // Warna teks mengikuti tier
-                                letterSpacing: 1.0,
+                              const SizedBox(height: 4),
+                              Text(
+                                _formattedMembership,
+                                style: TextStyle(
+                                  fontFamily: 'Playfair Display',
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: _tierColor,
+                                  letterSpacing: 1.0,
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 8),
+                              if (_membership.toUpperCase() == 'DIAMOND')
+                                const Text(
+                                  '🎉 You have reached our highest tier! Enjoy exclusive perks.',
+                                  style: TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontSize: 11,
+                                    color: Colors.white70,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                )
+                              else
+                                Text(
+                                  'Earn ${_getPointsToNextTier()} more points to reach ${_getNextTier()}!',
+                                  style: const TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontSize: 11,
+                                    color: Colors.white70,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 32),
 
                   const Text(
@@ -464,21 +533,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
+                  // ✅ PERBAIKI: Gunakan Material widget agar ListTile tidak warning "ink splashes may be invisible"
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    elevation: 2,
+                    shadowColor: Colors.black.withOpacity(0.04),
                     child: Column(
                       children: [
-                        // ✅ 1. MY RESERVATIONS (Core Business - Kamar)
                         ListTile(
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -519,10 +581,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           onTap: () => context.push('/my-reservations'),
                         ),
-
-                        const Divider(height: 1),
-
-                        // ✅ 2. MY BOOKINGS (Services - Spa, Dining)
+                        const Divider(height: 1, indent: 20, endIndent: 20),
                         ListTile(
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -563,27 +622,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           onTap: () => context.push('/my-bookings'),
                         ),
-                        const Divider(
-                          height: 1,
-                          indent: 20,
-                          endIndent: 20,
-                          color: Color(0xFFF0F0F0),
-                        ),
-
-                        const Divider(height: 1),
-
-                        // ✅ 3. MY FAVORITES (Wishlist)
+                        const Divider(height: 1, indent: 20, endIndent: 20),
                         ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           leading: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(
                               Icons.favorite,
                               color: Colors.red,
-                              size: 20,
+                              size: 24,
                             ),
                           ),
                           title: const Text(
@@ -609,10 +663,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           onTap: () => context.push('/my-favorites'),
                         ),
-
-                        const Divider(height: 1),
-
-                        // ✅ 4. MY REWARDS (Loyalty Points)
+                        const Divider(height: 1, indent: 20, endIndent: 20),
                         ListTile(
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -658,19 +709,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 builder: (context) => const MyRewardsScreen(),
                               ),
                             ).then((_) {
-                              // ✅ INI KUNCINYA!
-                              // Saat kembali dari My Rewards, paksa Profile Screen untuk rebuild
-                              // agar FutureBuilder di icon lonceng menghitung ulang jumlah notifikasi
-                              if (mounted) {
-                                setState(() {});
-                              }
+                              if (mounted) setState(() {});
                             });
                           },
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 40),
 
                   SizedBox(
@@ -696,7 +741,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24), // Extra padding at bottom
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
@@ -706,7 +751,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ✅ BARU: Widget Kartu Statistik yang Lebih Premium
   Widget _buildStatCard(
     String label,
     String value,

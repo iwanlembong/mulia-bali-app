@@ -30,7 +30,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   // ✅ Variabel untuk menghitung antrean verifikasi
   int _pendingVerificationCount = 0;
-  bool _isLoadingStats = true;
+  // bool _isLoadingStats = true;
 
   // ✅ Variabel state untuk statistik dashboard
   Map<String, int> _dashboardStats = {
@@ -42,32 +42,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   bool _isRouteSubscribed = false; // ✅ Mencegah subscribe berulang kali
 
+  bool _isFirstLoad =
+      true; // ✅ Penentu apakah ini loading pertama kali atau bukan
+
   @override
   void initState() {
     super.initState();
-
-    // 1. Load user info (ringan)
     _loadUserInfo();
-
-    // 2. Tunda SEMUA query berat sampai UI pertama selesai digambar
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      // Gunakan microtask dan delay agar Main Thread tidak macet
-      Future.microtask(() async {
-        if (!mounted) return;
-        await _fetchDashboardStats();
-
-        // Beri jeda 500ms agar UI bisa merespons sentuhan user
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (!mounted) return;
-        await _fetchPendingVerifications();
-
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (!mounted) return;
-        await _fetchStats();
-      });
-    });
+    _loadAllDashboardData(showLoading: true); // ✅ Hanya tampilkan loading saat PERTAMA KALI buka
   }
 
   @override
@@ -94,75 +76,73 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   @override
   void didPopNext() {
-    print(
-      '🔄 [ADMIN DASHBOARD] Kembali ke dashboard, me-refresh semua stats...',
-    );
-    _fetchDashboardStats();
-    _fetchStats();
-    _fetchPendingVerifications();
+     print('🔄 [ADMIN DASHBOARD] Kembali ke dashboard, silent refresh (TANPA SHIMMER)...');
+    // ✅ Refresh di background TANPA menampilkan loading shimmer
+    _loadAllDashboardData(showLoading: false); 
   }
 
-  Future<void> _fetchDashboardStats() async {
-    setState(() => _isLoadingStats = true);
+    Future<void> _loadAllDashboardData({required bool showLoading}) async {
+    if (showLoading && mounted) {
+      setState(() => _isFirstLoad = true);
+    }
 
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
 
-      // ✅ AMAN: Hanya ambil kolom 'id' dengan limit untuk mencegah OOM
-      final pendingRes = await Supabase.instance.client
-          .from('reservations')
-          .select('id')
-          .eq('status', 'pending')
-          .limit(1000);
-
-      final pendingOrders = await Supabase.instance.client
-          .from('orders')
-          .select('id')
-          .eq('status', 'pending')
-          .limit(1000);
-
-      final checkins = await Supabase.instance.client
-          .from('reservations')
-          .select('id')
-          .eq('status', 'confirmed')
-          .eq('check_in', today)
-          .limit(1000);
-
-      final vouchers = await Supabase.instance.client
-          .from('redemptions')
-          .select('id')
-          .eq('status', 'used')
-          .limit(1000);
-
-      final completedRes = await Supabase.instance.client
-          .from('reservations')
-          .select('id')
-          .eq('status', 'completed')
-          .limit(1000);
-
-      final completedOrders = await Supabase.instance.client
-          .from('orders')
-          .select('id')
-          .eq('status', 'completed')
-          .limit(1000);
+      // ✅ PERBAIKAN: Dataran (flatten) semua query ke dalam SATU Future.wait.
+      // Ini memperbaiki error type inference DAN tetap berjalan paralel (sangat cepat).
+      // Kami menambahkan <dynamic> agar Dart tidak bingung menebak tipe data.
+      final results = await Future.wait<dynamic>([
+        // 1. Dashboard Stats (6 queries)
+        Supabase.instance.client.from('reservations').select('id').eq('status', 'pending').limit(1000),       // Index 0
+        Supabase.instance.client.from('orders').select('id').eq('status', 'pending').limit(1000),             // Index 1
+        Supabase.instance.client.from('reservations').select('id').eq('status', 'confirmed').eq('check_in', today).limit(1000), // Index 2
+        Supabase.instance.client.from('redemptions').select('id').eq('status', 'used').limit(1000),           // Index 3
+        Supabase.instance.client.from('reservations').select('id').eq('status', 'completed').limit(1000),     // Index 4
+        Supabase.instance.client.from('orders').select('id').eq('status', 'completed').limit(1000),           // Index 5
+        
+        // 2. Pending Verifications (1 query)
+        Supabase.instance.client.from('order_payments').select('id').eq('status', 'pending').limit(1000),     // Index 6
+        
+        // 3. Content Stats (6 queries)
+        Supabase.instance.client.from('properties').select('id').limit(1000),                                 // Index 7
+        Supabase.instance.client.from('rooms').select('id').limit(1000),                                      // Index 8
+        Supabase.instance.client.from('spa_services').select('id').limit(1000),                               // Index 9
+        Supabase.instance.client.from('restaurants').select('id').limit(1000),                                // Index 10
+        Supabase.instance.client.from('menu_items').select('id').limit(1000),                                 // Index 11
+        Supabase.instance.client.from('weddings').select('id').limit(1000),                                   // Index 12
+      ]);
 
       if (mounted) {
         setState(() {
+          // ✅ Parse Dashboard Stats (sesuai index di atas)
           _dashboardStats = {
-            'pending':
-                (pendingRes as List).length + (pendingOrders as List).length,
-            'checkins': (checkins as List).length,
-            'vouchers': (vouchers as List).length,
-            'completed':
-                (completedRes as List).length +
-                (completedOrders as List).length,
+            'pending': (results[0] as List).length + (results[1] as List).length,
+            'checkins': (results[2] as List).length,
+            'vouchers': (results[3] as List).length,
+            'completed': (results[4] as List).length + (results[5] as List).length,
           };
-          _isLoadingStats = false;
+
+          // ✅ Parse Pending Verifications
+          _pendingVerificationCount = (results[6] as List).length;
+
+          // ✅ Parse Content Stats
+          _propertiesCount = (results[7] as List).length;
+          _roomsCount = (results[8] as List).length;
+          _spaCount = (results[9] as List).length;
+          _restaurantsCount = (results[10] as List).length;
+          _menusCount = (results[11] as List).length;
+          _weddingsCount = (results[12] as List).length;
+
+          // ✅ MATIKAN loading selamanya setelah data pertama kali sukses dimuat
+          _isFirstLoad = false; 
         });
       }
     } catch (e) {
-      print('❌ Error fetching dashboard stats: $e');
-      if (mounted) setState(() => _isLoadingStats = false);
+      print('❌ Error loading dashboard data: $e');
+      if (mounted) {
+        setState(() => _isFirstLoad = false);
+      }
     }
   }
 
@@ -185,78 +165,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
-  // ✅ VERSI DASHBOARD: Hanya menghitung JUMLAH pembayaran pending untuk badge
-  Future<void> _fetchPendingVerifications() async {
-    try {
-      // ✅ BARU & TERPUSAT: Hitung langsung dari tabel order_payments
-      // Ini jauh lebih akurat daripada mengecek 2 tabel terpisah (orders & reservations)
-      final response = await Supabase.instance.client
-          .from('order_payments')
-          .select('id')
-          .eq('status', 'pending')
-          .limit(1000); // Limit agar query tetap super ringan dan tidak bikin crash
-
-      if (mounted) {
-        setState(() {
-          _pendingVerificationCount = (response as List).length;
-        });
-      }
-    } catch (e) {
-      print('❌ Error fetching pending verifications count: $e');
-    }
-  }
-
-  // ✅ DIPERBARUI: Fetch jumlah data termasuk Restaurants, Menus, dan Weddings
-  Future<void> _fetchStats() async {
-    setState(() => _isLoadingStats = true);
-
-    try {
-      final propertiesResponse = await Supabase.instance.client
-          .from('properties')
-          .select('id')
-          .limit(1000);
-
-      final roomsResponse = await Supabase.instance.client
-          .from('rooms')
-          .select('id')
-          .limit(1000);
-
-      final spaResponse = await Supabase.instance.client
-          .from('spa_services')
-          .select('id')
-          .limit(1000);
-
-      final restaurantsResponse = await Supabase.instance.client
-          .from('restaurants')
-          .select('id')
-          .limit(1000);
-
-      final menusResponse = await Supabase.instance.client
-          .from('menu_items')
-          .select('id')
-          .limit(1000);
-
-      final weddingsResponse = await Supabase.instance.client
-          .from('weddings')
-          .select('id')
-          .limit(1000);
-
-      if (mounted) {
-        setState(() {
-          _propertiesCount = (propertiesResponse as List).length;
-          _roomsCount = (roomsResponse as List).length;
-          _spaCount = (spaResponse as List).length;
-          _restaurantsCount = (restaurantsResponse as List).length;
-          _menusCount = (menusResponse as List).length;
-          _weddingsCount = (weddingsResponse as List).length;
-          _isLoadingStats = false;
-        });
-      }
-    } catch (e) {
-      print('Error fetching stats: $e');
-      if (mounted) setState(() => _isLoadingStats = false);
-    }
-  }
+  
 
   Future<void> _handleLogout() async {
     await Supabase.instance.client.auth.signOut();
@@ -354,8 +263,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
             const SizedBox(height: 16),
 
-            // ✅ PERBAIKAN KRITIS 1: Gunakan Wrap, BUKAN GridView.count + shrinkWrap
-            _isLoadingStats
+            // ✅ PERBAIKAN: Gunakan _isFirstLoad, BUKAN _isLoadingStats
+            _isFirstLoad
                 ? const Wrap(
                     runSpacing: 16,
                     spacing: 16,
@@ -572,7 +481,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         const AdminPaymentVerificationScreen(),
                   ),
                 );
-                _fetchPendingVerifications();
+                // ✅ GANTI: Panggil method baru dengan showLoading: false (background refresh)
+                _loadAllDashboardData(showLoading: false); 
               },
               showBadge: _pendingVerificationCount > 0,
               badgeCount: _pendingVerificationCount,
@@ -598,8 +508,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     size: 24,
                   ),
                   onPressed: () async {
-                    await _fetchDashboardStats();
-                    await _fetchStats();
+                    // ✅ GANTI: Panggil method baru dengan showLoading: true (user sengaja refresh, jadi tampilkan loading)
+                    _loadAllDashboardData(showLoading: true);
                   },
                   tooltip: 'Refresh',
                 ),
@@ -607,8 +517,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
             const SizedBox(height: 16),
 
-            // ✅ PERBAIKAN KRITIS 2: Ganti GridView.count 3-kolom dengan Wrap
-            _isLoadingStats
+            // ✅ PERBAIKAN: Gunakan _isFirstLoad
+            _isFirstLoad
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.all(24.0),

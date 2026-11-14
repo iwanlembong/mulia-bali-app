@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -50,11 +51,31 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
     }
   }
 
+  // ✅ BARU: Tombol "Remind Me Later" — keluar tanpa membayar, cart TETAP tersimpan
+  // ✅ FINAL: Remind Me Later — order sudah pending di DB, tinggal kembali ke daftar booking
+  void _remindMeLater() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Booking saved as Pending. Pay anytime from My Bookings!',
+        ),
+        backgroundColor: AppColors.primaryGold,
+        duration: Duration(seconds: 3),
+      ),
+    );
+    // Kembali ke halaman sebelumnya (daftar booking user) dengan signal true
+    // Persis seperti pola di payment_instruction_screen.dart
+    Navigator.pop(context, true);
+  }
+
   // ✅ BARU: Submit Pembayaran menggunakan PaymentService (Full Payment Only)
   Future<void> _submitFullPayment() async {
     if (_imageBytes == null || _imageBytes!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload payment proof first'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Please upload payment proof first'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -115,7 +136,10 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
           }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to save payment data'), backgroundColor: Colors.red),
+            const SnackBar(
+              content: Text('Failed to save payment data'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -123,7 +147,10 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
       print('❌ [ERROR] Gagal upload payment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Upload Error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -137,7 +164,9 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
   Widget build(BuildContext context) {
     if (_isLoading || _order == null) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryGold)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGold),
+        ),
       );
     }
 
@@ -148,7 +177,10 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
         foregroundColor: Colors.white,
         title: const Text(
           'Payment',
-          style: TextStyle(fontFamily: 'Playfair Display', fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontFamily: 'Playfair Display',
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -162,25 +194,57 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'ORDER DETAILS',
-                    style: TextStyle(fontFamily: 'Lato', fontSize: 11, color: AppColors.textGrey, letterSpacing: 1.5, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 11,
+                      color: AppColors.textGrey,
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  Text(_order!.orderNumber, style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                  Text(
+                    _order!.orderNumber,
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
                   const Divider(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Amount (Full Payment)', style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                      const Text(
+                        'Total Amount (Full Payment)',
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkCharcoal,
+                        ),
+                      ),
                       Text(
                         _currencyFormat.format(_order!.totalAmount),
-                        style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryGold),
+                        style: const TextStyle(
+                          fontFamily: 'Playfair Display',
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryGold,
+                        ),
                       ),
                     ],
                   ),
@@ -214,7 +278,12 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
             // 2. Payment Method Selection
             const Text(
               'Select Payment Method',
-              style: TextStyle(fontFamily: 'Playfair Display', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+              style: TextStyle(
+                fontFamily: 'Playfair Display',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkCharcoal,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -224,10 +293,14 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _selectedMethod == 'Bank Transfer' ? AppColors.primaryGold.withOpacity(0.1) : Colors.white,
+                  color: _selectedMethod == 'Bank Transfer'
+                      ? AppColors.primaryGold.withOpacity(0.1)
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _selectedMethod == 'Bank Transfer' ? AppColors.primaryGold : Colors.grey.shade300,
+                    color: _selectedMethod == 'Bank Transfer'
+                        ? AppColors.primaryGold
+                        : Colors.grey.shade300,
                     width: _selectedMethod == 'Bank Transfer' ? 2 : 1,
                   ),
                 ),
@@ -239,22 +312,45 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
                         color: AppColors.primaryGold.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.account_balance, color: AppColors.primaryGold, size: 24),
+                      child: const Icon(
+                        Icons.account_balance,
+                        color: AppColors.primaryGold,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Bank Transfer', style: TextStyle(fontFamily: 'Lato', fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                          Text(
+                            'Bank Transfer',
+                            style: TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkCharcoal,
+                            ),
+                          ),
                           SizedBox(height: 4),
-                          Text('BCA, Mandiri, BNI, etc.', style: TextStyle(fontFamily: 'Lato', fontSize: 12, color: AppColors.textGrey)),
+                          Text(
+                            'BCA, Mandiri, BNI, etc.',
+                            style: TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 12,
+                              color: AppColors.textGrey,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Icon(
-                      _selectedMethod == 'Bank Transfer' ? Icons.check_circle : Icons.radio_button_unchecked,
-                      color: _selectedMethod == 'Bank Transfer' ? AppColors.primaryGold : Colors.grey,
+                      _selectedMethod == 'Bank Transfer'
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: _selectedMethod == 'Bank Transfer'
+                          ? AppColors.primaryGold
+                          : Colors.grey,
                     ),
                   ],
                 ),
@@ -275,21 +371,46 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.credit_card, color: Colors.white, size: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.credit_card,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Credit / Debit Card', style: TextStyle(fontFamily: 'Lato', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        Text(
+                          'Credit / Debit Card',
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
                         SizedBox(height: 4),
-                        Text('Coming Soon', style: TextStyle(fontFamily: 'Lato', fontSize: 12, color: Colors.grey)),
+                        Text(
+                          'Coming Soon',
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const Chip(label: Text('Soon', style: TextStyle(fontSize: 10)), backgroundColor: Colors.grey),
+                  const Chip(
+                    label: Text('Soon', style: TextStyle(fontSize: 10)),
+                    backgroundColor: Colors.grey,
+                  ),
                 ],
               ),
             ),
@@ -300,7 +421,12 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
             if (_selectedMethod == 'Bank Transfer') ...[
               const Text(
                 'Bank Transfer Details',
-                style: TextStyle(fontFamily: 'Playfair Display', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                style: TextStyle(
+                  fontFamily: 'Playfair Display',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkCharcoal,
+                ),
               ),
               const SizedBox(height: 12),
               Container(
@@ -308,7 +434,9 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.primaryGold.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryGold.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppColors.primaryGold.withOpacity(0.3),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -320,7 +448,12 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
                     const SizedBox(height: 12),
                     Text(
                       'Please transfer exactly: ${_currencyFormat.format(_order!.totalAmount)}',
-                      style: const TextStyle(fontFamily: 'Lato', fontSize: 12, color: AppColors.textGrey, fontStyle: FontStyle.italic),
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 12,
+                        color: AppColors.textGrey,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ],
                 ),
@@ -330,7 +463,12 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
               // Upload Payment Proof
               const Text(
                 'Upload Payment Proof',
-                style: TextStyle(fontFamily: 'Playfair Display', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                style: TextStyle(
+                  fontFamily: 'Playfair Display',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkCharcoal,
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -340,14 +478,14 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
                     : () async {
                         final picker = ImagePicker();
                         final pickedFile = await picker.pickImage(
-                          source: ImageSource.gallery, 
-                          imageQuality: 80
+                          source: ImageSource.gallery,
+                          imageQuality: 80,
                         );
-                        
+
                         if (pickedFile != null) {
                           // ✅ 1. Baca bytes terlebih dahulu (DI LUAR setState)
                           final bytes = await pickedFile.readAsBytes();
-                          
+
                           // ✅ 2. Update state secara sinkron
                           setState(() {
                             _imageBytes = bytes;
@@ -360,7 +498,9 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.textGrey.withOpacity(0.3)),
+                    border: Border.all(
+                      color: AppColors.textGrey.withOpacity(0.3),
+                    ),
                   ),
                   child: _imageBytes != null
                       ? ClipRRect(
@@ -370,9 +510,20 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
                       : const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.cloud_upload_outlined, size: 48, color: AppColors.primaryGold),
+                            Icon(
+                              Icons.cloud_upload_outlined,
+                              size: 48,
+                              color: AppColors.primaryGold,
+                            ),
                             SizedBox(height: 8),
-                            Text('Tap to upload transfer receipt', style: TextStyle(fontFamily: 'Lato', fontSize: 14, color: AppColors.textGrey)),
+                            Text(
+                              'Tap to upload transfer receipt',
+                              style: TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                color: AppColors.textGrey,
+                              ),
+                            ),
                           ],
                         ),
                 ),
@@ -384,18 +535,53 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isUploadingPayment || _imageBytes == null ? null : _submitFullPayment,
+                  onPressed: _isUploadingPayment || _imageBytes == null
+                      ? null
+                      : _submitFullPayment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade700,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: _isUploadingPayment
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white),
+                        )
                       : const Text(
                           'SUBMIT FULL PAYMENT',
-                          style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                          ),
                         ),
+                ),
+              ),
+
+              // ✅ Tombol "Remind Me Later" (konsisten dengan reservation)
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed:
+                      _remindMeLater, // ✅ Tidak perlu disabled, aman kapan pun
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.darkCharcoal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text(
+                    'REMIND ME LATER',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -411,8 +597,23 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontFamily: 'Lato', fontSize: 13, color: AppColors.textGrey)),
-        Text(value, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Lato',
+            fontSize: 13,
+            color: AppColors.textGrey,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontFamily: 'Lato',
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkCharcoal,
+          ),
+        ),
       ],
     );
   }

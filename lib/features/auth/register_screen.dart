@@ -278,6 +278,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         keyboardType: keyboardType,
         obscureText: isPassword,
         validator: validator,
+        // ✅ INI KUNCINYA: Validasi otomatis saat user berinteraksi, dan hilang saat valid
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(

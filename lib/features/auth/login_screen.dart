@@ -336,6 +336,8 @@ class _LoginScreenState extends State<LoginScreen> {
         obscureText: isPassword,
         keyboardType: keyboardType, // ✅ Diterapkan di sini
         validator: validator,
+        // ✅ INI KUNCINYA: Validasi otomatis saat user berinteraksi, dan hilang saat valid
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(

@@ -31,7 +31,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       await AuthService.resetPassword(_emailController.text.trim());
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -52,7 +52,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('An error occurred. Please try again.'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('An error occurred. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -103,6 +106,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 if (!v.contains('@')) return 'Enter a valid email';
                 return null;
               },
+              // ✅ INI KUNCINYA: Validasi otomatis saat user berinteraksi, dan hilang saat valid
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: const InputDecoration(
                 labelText: 'Email Address',
                 prefixIcon: Icon(
@@ -111,7 +116,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   size: 20,
                 ),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),

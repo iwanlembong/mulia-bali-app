@@ -19,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   bool _isLoading = false;
 
   @override
@@ -33,7 +33,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleRegister() async {
     // 1. Validasi Form (Akan memicu pesan error dari FormValidators jika tidak sesuai)
     if (!_formKey.currentState!.validate()) {
-      return; 
+      return;
     }
 
     setState(() => _isLoading = true);
@@ -60,9 +60,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         // 4. Arahkan ke halaman tujuan
         if (AuthService.isLoggedIn) {
-          context.go('/'); 
+          context.go('/');
         } else {
-          context.go('/login'); 
+          context.go('/login');
         }
       }
     } on AuthException catch (e) {
@@ -98,11 +98,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppLogo(
-            height: 60,
-            showText: true,
-            onTap: () => context.go('/'),
-          ),
+          AppLogo(height: 60, showText: true, onTap: () => context.go('/')),
           const SizedBox(height: 32),
           const Text(
             'Create Account',

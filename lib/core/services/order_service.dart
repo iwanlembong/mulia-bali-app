@@ -254,14 +254,14 @@ class OrderService {
   }
 
   /// ✅ Ambil detail 1 order beserta semua items-nya (Detail View - Lengkap)
-  static Future<Order?> getOrderById(String orderId) async {
+    static Future<Order?> getOrderById(String orderId) async {
     try {
       print('🔍 [ORDER] Fetching order detail: $orderId');
 
-      // ✅ 1. Ambil data order
+      // ✅ 1. Ambil data order (.select() tanpa argumen = ambil semua kolom '*')
       final orderResponse = await Supabase.instance.client
           .from('orders')
-          .select()
+          .select() 
           .eq('id', orderId)
           .maybeSingle();
 
@@ -271,15 +271,6 @@ class OrderService {
       }
 
       print('✅ [ORDER] Order found: ${orderResponse['order_number']}');
-
-      // ✅ DEBUG: Print semua kolom yang di-return dari database
-      print('🔍 [DEBUG] Raw data from database:');
-      print('   discount_amount: ${orderResponse['discount_amount']}');
-      print(
-        '   voucher_discount_amount: ${orderResponse['voucher_discount_amount']}',
-      );
-      print('   promo_code: ${orderResponse['promo_code']}');
-      print('   total_amount: ${orderResponse['total_amount']}');
 
       // ✅ 2. Ambil data user secara terpisah (RLS Safe)
       final userId = orderResponse['user_id'] as String;
@@ -312,16 +303,17 @@ class OrderService {
           .map((item) => OrderItem.fromMap(item as Map<String, dynamic>))
           .toList();
 
-      // ✅ 4. Parse discount_amount dan promo_code dengan aman
-      final discountAmount =
-          (orderResponse['discount_amount'] as num?)?.toInt() ?? 0;
+      // ✅ 4. Parse data dengan aman
+      final discountAmount = (orderResponse['discount_amount'] as num?)?.toInt() ?? 0;
       final promoCode = orderResponse['promo_code'] as String?;
 
       print('✅ [DEBUG] Parsed values:');
       print('   discountAmount: $discountAmount');
       print('   promoCode: $promoCode');
+      // ✅ DEBUG BARU: Cek apakah wedding_status terambil
+      print('   wedding_status: ${orderResponse['wedding_status']}'); 
 
-      // ✅ 5. Bangun Order object LENGKAP
+      // ✅ 5. Bangun Order object LENGKAP (DITAMBAHKAN 3 BARIS PENTING DI BAWAH)
       return Order(
         id: orderResponse['id'] as String,
         userId: userId,
@@ -335,16 +327,18 @@ class OrderService {
         items: items,
         userName: userName ?? 'Unknown User',
         userEmail: userEmail ?? 'No Email',
-        discountAmount: discountAmount, // ✅ PASTIKAN INI DI-PARSE
-        promoCode: promoCode, // ✅ PASTIKAN INI DI-PARSE
-        voucherId: orderResponse['voucher_id'] as String?, // ✅ TAMBAHKAN
-        voucherDiscountAmount:
-            (orderResponse['voucher_discount_amount'] as num?)?.toInt() ??
-            0, // ✅ TAMBAHKAN
+        discountAmount: discountAmount,
+        promoCode: promoCode,
+        voucherId: orderResponse['voucher_id'] as String?,
+        voucherDiscountAmount: (orderResponse['voucher_discount_amount'] as num?)?.toInt() ?? 0,
         paymentMethod: orderResponse['payment_method'] as String?,
         paymentProofUrl: orderResponse['payment_proof_url'] as String?,
-        rejectionReason:
-            orderResponse['rejection_reason'] as String?, // ✅ TAMBAHKAN INI
+        rejectionReason: orderResponse['rejection_reason'] as String?,
+        
+        // ✅✅✅ INI YANG HILANG SEBELUMNYA (TAMBAHKAN 3 BARIS INI) ✅✅✅
+        weddingStatus: orderResponse['wedding_status'] as String?,
+        guestCount: orderResponse['guest_count'] as int?,
+        eventDate: orderResponse['event_date'] as String?,
       );
     } catch (e) {
       print('❌ [ORDER] Error fetching order detail: $e');

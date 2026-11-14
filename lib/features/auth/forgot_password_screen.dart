@@ -62,6 +62,94 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'form' = isi form LAMA, tidak diubah sedikit pun
+    final form = Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const AppLogo(height: 60, showText: true),
+          const SizedBox(height: 32),
+          const Text(
+            'Forgot Password?',
+            style: TextStyle(
+              fontFamily: 'Playfair Display',
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkCharcoal,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Enter your email address and we will send you a link to reset your password.',
+            style: TextStyle(
+              fontFamily: 'Lato',
+              fontSize: 14,
+              color: AppColors.textGrey,
+            ),
+          ),
+          const SizedBox(height: 32),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.primaryGold.withOpacity(0.3)),
+            ),
+            child: TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              validator: (v) {
+                if (v!.trim().isEmpty) return 'Email is required';
+                if (!v.contains('@')) return 'Enter a valid email';
+                return null;
+              },
+              decoration: const InputDecoration(
+                labelText: 'Email Address',
+                prefixIcon: Icon(
+                  Icons.email_outlined,
+                  color: AppColors.primaryGold,
+                  size: 20,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: _isLoading ? null : _handleReset,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.darkCharcoal,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    'SEND RESET LINK',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -73,68 +161,68 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const AppLogo(height: 60, showText: true),
-                const SizedBox(height: 32),
-                const Text(
-                  'Forgot Password?',
-                  style: TextStyle(
-                    fontFamily: 'Playfair Display',
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkCharcoal,
-                  ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isDesktop = constraints.maxWidth > 600;
+
+            if (!isDesktop) {
+              // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: form,
+              );
+            }
+
+            // --- TABLET & DESKTOP: Centered Premium Card + Gradient ---
+            return Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFF7F5F0),
+                    Color(0xFFEDE7DA),
+                    Color(0xFFF7F5F0),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Enter your email address and we will send you a link to reset your password.',
-                  style: TextStyle(fontFamily: 'Lato', fontSize: 14, color: AppColors.textGrey),
-                ),
-                const SizedBox(height: 32),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.primaryGold.withOpacity(0.3)),
-                  ),
-                  child: TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) {
-                      if (v!.trim().isEmpty) return 'Email is required';
-                      if (!v.contains('@')) return 'Enter a valid email';
-                      return null;
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Email Address',
-                      prefixIcon: Icon(Icons.email_outlined, color: AppColors.primaryGold, size: 20),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 48,
+                          horizontal: 24,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(36),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.primaryGold.withOpacity(0.18),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 28,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: form,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleReset,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.darkCharcoal,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('SEND RESET LINK', style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

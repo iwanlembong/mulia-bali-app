@@ -270,7 +270,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'IDR ${_currencyFormat.format(_remainingBalance)}',
+                          ' ${_currencyFormat.format(_remainingBalance)}',
                           style: const TextStyle(
                             fontFamily: 'Playfair Display',
                             fontSize: 24,

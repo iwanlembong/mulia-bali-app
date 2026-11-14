@@ -92,6 +92,94 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'form' = isi form LAMA, tidak diubah sedikit pun
+    final form = Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppLogo(
+            height: 60,
+            showText: true,
+            onTap: () => context.go('/'),
+          ),
+          const SizedBox(height: 32),
+          const Text(
+            'Create Account',
+            style: TextStyle(
+              fontFamily: 'Playfair Display',
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkCharcoal,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Join Mulia Privilege for exclusive benefits.',
+            style: TextStyle(
+              fontFamily: 'Lato',
+              fontSize: 14,
+              color: AppColors.textGrey,
+            ),
+          ),
+          const SizedBox(height: 32),
+          _buildTextField(
+            controller: _nameController,
+            label: 'Full Name',
+            icon: Icons.person_outline,
+            validator: FormValidators.validateName,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _emailController,
+            label: 'Email Address',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: FormValidators.validateEmail,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _passwordController,
+            label: 'Password',
+            icon: Icons.lock_outline,
+            isPassword: true,
+            validator: FormValidators.validatePassword,
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: _isLoading ? null : _handleRegister,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.darkCharcoal,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    'CREATE ACCOUNT',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -103,103 +191,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppLogo(
-                  height: 60,
-                  showText: true,
-                  onTap: () => context.go('/'),
-                ),
-                const SizedBox(height: 32),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isDesktop = constraints.maxWidth > 600;
 
-                const Text(
-                  'Create Account',
-                  style: TextStyle(
-                    fontFamily: 'Playfair Display',
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkCharcoal,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Join Mulia Privilege for exclusive benefits.',
-                  style: TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 14,
-                    color: AppColors.textGrey,
-                  ),
-                ),
-                const SizedBox(height: 32),
+            if (!isDesktop) {
+              // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: form,
+              );
+            }
 
-                // ✅ 2. FULL NAME: Hanya huruf dan spasi, min 2 karakter
-                _buildTextField(
-                  controller: _nameController,
-                  label: 'Full Name',
-                  icon: Icons.person_outline,
-                  validator: FormValidators.validateName,
+            // --- TABLET & DESKTOP: Centered Premium Card + Gradient ---
+            return Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFF7F5F0),
+                    Color(0xFFEDE7DA),
+                    Color(0xFFF7F5F0),
+                  ],
                 ),
-                const SizedBox(height: 16),
-
-                // ✅ 3. EMAIL: Validasi regex ketat (harus ada @ dan domain)
-                _buildTextField(
-                  controller: _emailController,
-                  label: 'Email Address',
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: FormValidators.validateEmail,
-                ),
-                const SizedBox(height: 16),
-
-                // ✅ 4. PASSWORD: Min 8 karakter, 1 huruf besar, 1 angka
-                _buildTextField(
-                  controller: _passwordController,
-                  label: 'Password',
-                  icon: Icons.lock_outline,
-                  isPassword: true,
-                  validator: FormValidators.validatePassword,
-                ),
-
-                const SizedBox(height: 32),
-
-                // TOMBOL DENGAN LOADING STATE
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleRegister,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.darkCharcoal,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              ),
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 48,
+                          horizontal: 24,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(36),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.primaryGold.withOpacity(0.18),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 28,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: form,
+                        ),
+                      ),
                     ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'CREATE ACCOUNT',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

@@ -64,7 +64,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
       // 4. Ambil Nama Item dari masing-masing tabel
       Map<String, String> itemNames = {}; // Key: item_id, Value: item_name
-      
+
       for (var entry in itemsByType.entries) {
         String type = entry.key;
         List<String> ids = entry.value;
@@ -94,8 +94,10 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
         if (tableName.isNotEmpty) {
           try {
-            print(' [DEBUG] Mencari nama untuk $type di tabel $tableName dengan IDs: $ids');
-            
+            print(
+              ' [DEBUG] Mencari nama untuk $type di tabel $tableName dengan IDs: $ids',
+            );
+
             final res = await Supabase.instance.client
                 .from(tableName)
                 .select('id, $nameColumn')
@@ -107,23 +109,28 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               itemNames[item['id']] = item[nameColumn] ?? 'Unknown Item';
               print('   - ${item['id']}: ${item[nameColumn]}');
             }
-            
+
             // ✅ FALLBACK: Jika tidak ada hasil dari menu_items, coba cari di restaurants
             if (type == 'dining' && res.isEmpty) {
-              print('⚠️ [DEBUG] Tidak ditemukan di menu_items, mencoba di restaurants...');
+              print(
+                '⚠️ [DEBUG] Tidak ditemukan di menu_items, mencoba di restaurants...',
+              );
               final restaurantRes = await Supabase.instance.client
                   .from('restaurants')
                   .select('id, name')
                   .inFilter('id', ids);
-              
+
               for (var item in (restaurantRes as List)) {
                 itemNames[item['id']] = item['name'] ?? 'Unknown Restaurant';
-                print('   - Found in restaurants: ${item['id']}: ${item['name']}');
+                print(
+                  '   - Found in restaurants: ${item['id']}: ${item['name']}',
+                );
               }
             }
-            
           } catch (e) {
-            print('❌ [ADMIN] Gagal mengambil nama untuk $type dari $tableName: $e');
+            print(
+              '❌ [ADMIN] Gagal mengambil nama untuk $type dari $tableName: $e',
+            );
           }
         }
       }
@@ -429,6 +436,305 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'listContent' = RefreshIndicator + ListView Anda yang SAMA PERSIS
+    //    (RefreshIndicator ikut di sini agar pull-to-refresh tetap jalan di semua ukuran)
+    final listContent = RefreshIndicator(
+      onRefresh: _fetchReviews,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _reviews.length,
+        itemBuilder: (context, index) {
+          final review = _reviews[index];
+          final userName = review['user_name'] ?? 'Unknown User';
+          final itemType = review['item_type'] ?? 'general';
+          final rating = review['rating'] as int;
+          final comment = review['comment'] ?? '';
+          final date = DateTime.parse(review['created_at']);
+          final color = _getColor(itemType);
+
+          // ✅ CEK STATUS APPROVAL & REPLY
+          final isApproved = review['is_approved'] == true;
+          final hasReplied =
+              review['admin_reply'] != null &&
+              review['admin_reply'].toString().isNotEmpty;
+
+          // ✅ PENTING: ValueKey mencakup isApproved agar rebuild saat di-approve
+          return Card(
+            key: ValueKey('review_${review['id']}_$isApproved'),
+            margin: const EdgeInsets.only(bottom: 12),
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              // Border hijau jika sudah di-reply, border orange jika masih pending
+              side: BorderSide(
+                color: hasReplied
+                    ? Colors.green.shade400
+                    : (isApproved
+                          ? Colors.transparent
+                          : Colors.orange.shade400),
+                width: hasReplied ? 1.5 : (isApproved ? 0 : 1.5),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: color.withOpacity(0.1),
+                        child: Icon(_getIcon(itemType), color: color, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              userName,
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '${review['item_name'] ?? itemType.toUpperCase()} • ${DateFormat('dd MMM yyyy').format(date)}',
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 11,
+                                color: AppColors.textGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ✅ 1. BADGE PENDING (Muncul jika BELUM di-approve)
+                      if (!isApproved) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.orange.shade400),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.hourglass_empty,
+                                color: Colors.orange.shade700,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Pending',
+                                style: TextStyle(
+                                  color: Colors.orange.shade700,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+
+                      // ✅ 2. BADGE REPLIED (Muncul jika SUDAH di-approve DAN sudah di-reply)
+                      if (isApproved && hasReplied) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.shade300),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.green.shade700,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Replied',
+                                style: TextStyle(
+                                  color: Colors.green.shade700,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+
+                      // ✅ 3. TOMBOL APPROVE (Hanya muncul jika BELUM di-approve)
+                      if (!isApproved)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.green,
+                            size: 26,
+                          ),
+                          onPressed: () => _approveReview(review['id']),
+                          tooltip: 'Approve & Publish Review',
+                        ),
+
+                      // ✅ 3. TOMBOL REVERT TO PENDING (Hanya muncul jika SUDAH di-approve)
+                      if (isApproved)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.hourglass_bottom,
+                            color: Colors.orange,
+                            size: 24,
+                          ),
+                          onPressed: () => _revertToPending(review['id']),
+                          tooltip: 'Revert to Pending',
+                        ),
+
+                      // ✅ 4. TOMBOL REPLY (Hanya muncul jika SUDAH di-approve)
+                      if (isApproved)
+                        IconButton(
+                          icon: Icon(
+                            Icons.reply,
+                            color: hasReplied
+                                ? Colors.green.shade700
+                                : AppColors.primaryGold,
+                            size: 22,
+                          ),
+                          onPressed: () => _showReplyDialog(review),
+                          tooltip: hasReplied
+                              ? 'Edit Reply'
+                              : 'Reply to Review',
+                        ),
+
+                      // ✅ 5. TOMBOL DELETE (Selalu muncul)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                          size: 22,
+                        ),
+                        onPressed: () => _deleteReview(review['id']),
+                        tooltip: 'Delete Review',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: List.generate(5, (i) {
+                      return Icon(
+                        i < rating ? Icons.star : Icons.star_border,
+                        color: AppColors.primaryGold,
+                        size: 18,
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    comment,
+                    style: const TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 13,
+                      color: AppColors.darkCharcoal,
+                      height: 1.5,
+                    ),
+                  ),
+
+                  // ✅ PREVIEW BALASAN
+                  if (hasReplied) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Your Reply:',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textGrey,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            review['admin_reply'],
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.darkCharcoal,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    // ✅ Widget reusable untuk state kosong & loading (agar tidak duplikat kode)
+    final loadingWidget = const Center(
+      child: CircularProgressIndicator(color: AppColors.primaryGold),
+    );
+
+    final emptyWidget = Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.rate_review_outlined,
+            size: 64,
+            color: AppColors.textGrey,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No reviews found.',
+            style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _fetchReviews,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh Reviews'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGold,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -445,288 +751,47 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchReviews),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : _reviews.isEmpty
-          ? const Center(
-              child: Text(
-                'No reviews found.',
-                style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _fetchReviews,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _reviews.length,
-                itemBuilder: (context, index) {
-                  final review = _reviews[index];
-                  final userName = review['user_name'] ?? 'Unknown User';
-                  final itemType = review['item_type'] ?? 'general';
-                  final rating = review['rating'] as int;
-                  final comment = review['comment'] ?? '';
-                  final date = DateTime.parse(review['created_at']);
-                  final color = _getColor(itemType);
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
 
-                  // ✅ CEK STATUS APPROVAL & REPLY
-                  final isApproved = review['is_approved'] == true;
-                  final hasReplied =
-                      review['admin_reply'] != null &&
-                      review['admin_reply'].toString().isNotEmpty;
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) return loadingWidget;
+            if (_reviews.isEmpty) return emptyWidget;
+            return listContent; // Kembalikan RefreshIndicator + ListView asli
+          }
 
-                  // ✅ PENTING: ValueKey mencakup isApproved agar rebuild saat di-approve
-                  return Card(
-                    key: ValueKey('review_${review['id']}_$isApproved'),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      // Border hijau jika sudah di-reply, border orange jika masih pending
-                      side: BorderSide(
-                        color: hasReplied
-                            ? Colors.green.shade400
-                            : (isApproved
-                                  ? Colors.transparent
-                                  : Colors.orange.shade400),
-                        width: hasReplied ? 1.5 : (isApproved ? 0 : 1.5),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 20,
-                                backgroundColor: color.withOpacity(0.1),
-                                child: Icon(
-                                  _getIcon(itemType),
-                                  color: color,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      userName,
-                                      style: const TextStyle(
-                                        fontFamily: 'Lato',
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${review['item_name'] ?? itemType.toUpperCase()} • ${DateFormat('dd MMM yyyy').format(date)}',
-                                      style: const TextStyle(
-                                        fontFamily: 'Lato',
-                                        fontSize: 11,
-                                        color: AppColors.textGrey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // ✅ 1. BADGE PENDING (Muncul jika BELUM di-approve)
-                              if (!isApproved) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.shade100,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.orange.shade400,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.hourglass_empty,
-                                        color: Colors.orange.shade700,
-                                        size: 12,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Pending',
-                                        style: TextStyle(
-                                          color: Colors.orange.shade700,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-
-                              // ✅ 2. BADGE REPLIED (Muncul jika SUDAH di-approve DAN sudah di-reply)
-                              if (isApproved && hasReplied) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade100,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.green.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green.shade700,
-                                        size: 12,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Replied',
-                                        style: TextStyle(
-                                          color: Colors.green.shade700,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-
-                              // ✅ 3. TOMBOL APPROVE (Hanya muncul jika BELUM di-approve)
-                              if (!isApproved)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.check_circle_outline,
-                                    color: Colors.green,
-                                    size: 26,
-                                  ),
-                                  onPressed: () => _approveReview(review['id']),
-                                  tooltip: 'Approve & Publish Review',
-                                ),
-
-                              // ✅ 3. TOMBOL REVERT TO PENDING (Hanya muncul jika SUDAH di-approve)
-                              if (isApproved)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.hourglass_bottom,
-                                    color: Colors.orange,
-                                    size: 24,
-                                  ),
-                                  onPressed: () =>
-                                      _revertToPending(review['id']),
-                                  tooltip: 'Revert to Pending',
-                                ),
-
-                              // ✅ 4. TOMBOL REPLY (Hanya muncul jika SUDAH di-approve)
-                              if (isApproved)
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.reply,
-                                    color: hasReplied
-                                        ? Colors.green.shade700
-                                        : AppColors.primaryGold,
-                                    size: 22,
-                                  ),
-                                  onPressed: () => _showReplyDialog(review),
-                                  tooltip: hasReplied
-                                      ? 'Edit Reply'
-                                      : 'Reply to Review',
-                                ),
-
-                              // ✅ 5. TOMBOL DELETE (Selalu muncul)
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.red,
-                                  size: 22,
-                                ),
-                                onPressed: () => _deleteReview(review['id']),
-                                tooltip: 'Delete Review',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: List.generate(5, (i) {
-                              return Icon(
-                                i < rating ? Icons.star : Icons.star_border,
-                                color: AppColors.primaryGold,
-                                size: 18,
-                              );
-                            }),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            comment,
-                            style: const TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              color: AppColors.darkCharcoal,
-                              height: 1.5,
-                            ),
-                          ),
-
-                          // ✅ PREVIEW BALASAN
-                          if (hasReplied) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Your Reply:',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textGrey,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    review['admin_reply'],
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.darkCharcoal,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  );
-                },
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
               ),
             ),
+            child: _isLoading
+                ? loadingWidget
+                : _reviews.isEmpty
+                ? emptyWidget
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                    child: Center(
+                      child: ConstrainedBox(
+                        // ✅ Batasi lebar maksimal agar kartu review tidak "melebar" aneh di desktop
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child: listContent, // RefreshIndicator tetap berfungsi di sini!
+                      ),
+                    ),
+                  ),
+          );
+        },
+      ),
     );
   }
 }

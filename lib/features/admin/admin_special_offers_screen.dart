@@ -218,31 +218,42 @@ class _AdminSpecialOffersScreenState extends State<AdminSpecialOffersScreen> {
                 DropdownButtonFormField<String>(
                   value: selectedPromoCode,
                   decoration: const InputDecoration(
-                    labelText: 'Linked Promo Code (Optional)', 
-                    border: OutlineInputBorder(), 
+                    labelText: 'Linked Promo Code (Optional)',
+                    border: OutlineInputBorder(),
                   ),
                   items: [
-                    const DropdownMenuItem<String>(value: null, child: Text('None (Manual Entry Only)')),
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('None (Manual Entry Only)'),
+                    ),
                     ...activePromos.map((promo) {
-                      final type = promo['discount_type'] == 'percentage' ? '%' : ' IDR';
+                      final type = promo['discount_type'] == 'percentage'
+                          ? '%'
+                          : ' IDR';
                       return DropdownMenuItem<String>(
                         value: promo['code'],
-                        child: Text('${promo['code']} (Disc: ${promo['discount_value']}$type)'),
+                        child: Text(
+                          '${promo['code']} (Disc: ${promo['discount_value']}$type)',
+                        ),
                       );
                     }).toList(),
                   ],
                   onChanged: (val) {
                     setDialogState(() {
                       selectedPromoCode = val;
-                      
+
                       // ✅ LOGIKA AUTO-FILL: Isi discountController berdasarkan promo yang dipilih
                       if (val == null) {
-                        discountController.clear(); // Kosongkan jika memilih "None"
+                        discountController
+                            .clear(); // Kosongkan jika memilih "None"
                       } else {
                         // Cari data promo yang dipilih dari list activePromos
-                        final selectedPromo = activePromos.firstWhere((p) => p['code'] == val);
+                        final selectedPromo = activePromos.firstWhere(
+                          (p) => p['code'] == val,
+                        );
                         // Isi text field dengan nilai diskonnya
-                        discountController.text = selectedPromo['discount_value'].toString();
+                        discountController.text =
+                            selectedPromo['discount_value'].toString();
                       }
                     });
                   },
@@ -251,14 +262,18 @@ class _AdminSpecialOffersScreenState extends State<AdminSpecialOffersScreen> {
 
                 TextField(
                   controller: discountController,
-                  readOnly: true, // ✅ Buat hanya baca agar admin tahu ini auto-filled
+                  readOnly:
+                      true, // ✅ Buat hanya baca agar admin tahu ini auto-filled
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: 'Display Discount Badge (%)',
                     suffixText: '%',
-                    helperText: 'Auto populated based on the selected Promo Code',
+                    helperText:
+                        'Auto populated based on the selected Promo Code',
                     filled: true,
-                    fillColor: Colors.grey.shade100, // Beri warna latar sedikit berbeda
+                    fillColor: Colors
+                        .grey
+                        .shade100, // Beri warna latar sedikit berbeda
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -442,6 +457,279 @@ class _AdminSpecialOffersScreenState extends State<AdminSpecialOffersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Ekstrak konten inti ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final coreContent = _isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: AppColors.primaryGold),
+          )
+        : _offers.isEmpty
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.local_offer_outlined,
+                  size: 64,
+                  color: AppColors.textGrey,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No special offers found.',
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    color: AppColors.textGrey,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => _showOfferDialog(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add First Offer'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGold,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _offers.length,
+            itemBuilder: (context, index) {
+              final o = _offers[index];
+              final discount = o['discount_percentage'];
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              image:
+                                  o['image_url'] != null &&
+                                      o['image_url'].toString().isNotEmpty
+                                  ? DecorationImage(
+                                      image: NetworkImage(o['image_url']),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                              color: const Color(0xFFCD5C5C).withOpacity(0.1),
+                            ),
+                            child:
+                                o['image_url'] == null ||
+                                    o['image_url'].toString().isEmpty
+                                ? const Icon(
+                                    Icons.local_offer,
+                                    color: Color(0xFFCD5C5C),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  o['title'],
+                                  style: const TextStyle(
+                                    fontFamily: 'Playfair Display',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                if (discount != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '$discount% OFF',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: (o['is_active'] == true)
+                                  ? Colors.green.withOpacity(0.1)
+                                  : Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.circle,
+                                  size: 8,
+                                  color: (o['is_active'] == true)
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  (o['is_active'] == true)
+                                      ? 'Active'
+                                      : 'Inactive',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: (o['is_active'] == true)
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 8),
+                      if (o['service_type'] != null || o['promo_code'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              if (o['service_type'] != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryGold.withOpacity(
+                                      0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    o['service_type'].toString().toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.darkCharcoal,
+                                    ),
+                                  ),
+                                ),
+                              if (o['promo_code'] != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.local_offer,
+                                        size: 12,
+                                        color: Colors.green,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Code: ${o['promo_code']}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: AppColors.textGrey,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${_displayDateFormat.format(DateTime.parse(o['valid_from']))} - ${_displayDateFormat.format(DateTime.parse(o['valid_until']))}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textGrey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            onPressed: () => _showOfferDialog(offer: o),
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            tooltip: 'Edit',
+                            constraints: const BoxConstraints(
+                              minWidth: 40,
+                              minHeight: 40,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => _deleteOffer(o['id'], o['title']),
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            tooltip: 'Delete',
+                            constraints: const BoxConstraints(
+                              minWidth: 40,
+                              minHeight: 40,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -459,281 +747,7 @@ class _AdminSpecialOffersScreenState extends State<AdminSpecialOffersScreen> {
           onPressed: () => context.go('/admin/dashboard'),
         ),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : _offers.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.local_offer_outlined,
-                    size: 64,
-                    color: AppColors.textGrey,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No special offers found.',
-                    style: TextStyle(
-                      fontFamily: 'Lato',
-                      color: AppColors.textGrey,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showOfferDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add First Offer'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGold,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _offers.length,
-              itemBuilder: (context, index) {
-                final o = _offers[index];
-                final discount = o['discount_percentage'];
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                image:
-                                    o['image_url'] != null &&
-                                        o['image_url'].toString().isNotEmpty
-                                    ? DecorationImage(
-                                        image: NetworkImage(o['image_url']),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
-                                color: const Color(0xFFCD5C5C).withOpacity(0.1),
-                              ),
-                              child:
-                                  o['image_url'] == null ||
-                                      o['image_url'].toString().isEmpty
-                                  ? const Icon(
-                                      Icons.local_offer,
-                                      color: Color(0xFFCD5C5C),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    o['title'],
-                                    style: const TextStyle(
-                                      fontFamily: 'Playfair Display',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  if (discount != null)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        '$discount% OFF',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (o['is_active'] == true)
-                                    ? Colors.green.withOpacity(0.1)
-                                    : Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.circle,
-                                    size: 8,
-                                    color: (o['is_active'] == true)
-                                        ? Colors.green
-                                        : Colors.red,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    (o['is_active'] == true)
-                                        ? 'Active'
-                                        : 'Inactive',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: (o['is_active'] == true)
-                                          ? Colors.green
-                                          : Colors.red,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Divider(height: 1),
-                        const SizedBox(height: 8),
-                        // ✅ BARU: Tampilkan Badge Service Type & Promo Code
-                        if (o['service_type'] != null ||
-                            o['promo_code'] != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 4,
-                              children: [
-                                if (o['service_type'] != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryGold.withOpacity(
-                                        0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      o['service_type']
-                                          .toString()
-                                          .toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.darkCharcoal,
-                                      ),
-                                    ),
-                                  ),
-                                if (o['promo_code'] != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.local_offer,
-                                          size: 12,
-                                          color: Colors.green,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Code: ${o['promo_code']}',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.green,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today,
-                              size: 14,
-                              color: AppColors.textGrey,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                '${_displayDateFormat.format(DateTime.parse(o['valid_from']))} - ${_displayDateFormat.format(DateTime.parse(o['valid_until']))}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textGrey,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Divider(height: 1),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            IconButton(
-                              onPressed: () => _showOfferDialog(offer: o),
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              tooltip: 'Edit',
-                              constraints: const BoxConstraints(
-                                minWidth: 40,
-                                minHeight: 40,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () =>
-                                  _deleteOffer(o['id'], o['title']),
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              tooltip: 'Delete',
-                              constraints: const BoxConstraints(
-                                minWidth: 40,
-                                minHeight: 40,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+      // ✅ Mempertahankan lokasi FAB di kiri bawah agar tidak menutupi tombol Edit/Delete
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showOfferDialog(),
         backgroundColor: AppColors.darkCharcoal,
@@ -741,8 +755,42 @@ class _AdminSpecialOffersScreenState extends State<AdminSpecialOffersScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Offer'),
       ),
-      // ✅ BARU: Pindahkan tombol ke kiri bawah agar tidak menutupi tombol Edit/Delete
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat, 
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return coreContent;
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: coreContent, // Gunakan konten yang sama persis!
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

@@ -283,6 +283,138 @@ class _AdminRoomsScreenState extends State<AdminRoomsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'listContent' = ListView Anda yang SAMA PERSIS, tidak diubah
+    final listContent = ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _rooms.length,
+      itemBuilder: (context, index) {
+        final r = _rooms[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            leading: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppColors.primaryGold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.bed, color: AppColors.primaryGold),
+            ),
+            title: Text(
+              r['name'],
+              style: const TextStyle(
+                fontFamily: 'Playfair Display',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  'IDR ${r['price_per_night']?.toString() ?? '0'} / night',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryGold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_outline,
+                      size: 14,
+                      color: AppColors.textGrey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${r['max_guests']} Guests',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textGrey,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Icon(
+                      Icons.king_bed,
+                      size: 14,
+                      color: AppColors.textGrey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      r['bed_type'] ?? 'N/A',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textGrey,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  tooltip: 'Edit',
+                  onPressed: () => _showRoomDialog(room: r),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Delete',
+                  onPressed: () => _deleteRoom(r['id'], r['name']),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // ✅ Widget reusable untuk state kosong & loading (agar tidak duplikat kode)
+    final loadingWidget = const Center(
+      child: CircularProgressIndicator(color: AppColors.primaryGold),
+    );
+
+    final emptyWidget = Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.meeting_room_outlined,
+            size: 64,
+            color: AppColors.textGrey,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No rooms found for ${widget.propertyName}.',
+            style: const TextStyle(
+              fontFamily: 'Lato',
+              color: AppColors.textGrey,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => _showRoomDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add First Room'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGold,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -310,143 +442,53 @@ class _AdminRoomsScreenState extends State<AdminRoomsScreen> {
           onPressed: () => context.go('/admin/properties'),
         ),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : _rooms.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.meeting_room_outlined,
-                    size: 64,
-                    color: AppColors.textGrey,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No rooms found for ${widget.propertyName}.',
-                    style: const TextStyle(
-                      fontFamily: 'Lato',
-                      color: AppColors.textGrey,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showRoomDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add First Room'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGold,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _rooms.length,
-              itemBuilder: (context, index) {
-                final r = _rooms[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryGold.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.bed,
-                        color: AppColors.primaryGold,
-                      ),
-                    ),
-                    title: Text(
-                      r['name'],
-                      style: const TextStyle(
-                        fontFamily: 'Playfair Display',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          'IDR ${r['price_per_night']?.toString() ?? '0'} / night',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryGold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person_outline,
-                              size: 14,
-                              color: AppColors.textGrey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${r['max_guests']} Guests',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textGrey,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Icon(
-                              Icons.king_bed,
-                              size: 14,
-                              color: AppColors.textGrey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              r['bed_type'] ?? 'N/A',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          tooltip: 'Edit',
-                          onPressed: () => _showRoomDialog(room: r),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          tooltip: 'Delete',
-                          onPressed: () => _deleteRoom(r['id'], r['name']),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showRoomDialog(),
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Room'),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) return loadingWidget;
+            if (_rooms.isEmpty) return emptyWidget;
+            return listContent; // Kembalikan ListView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: _isLoading
+                ? loadingWidget
+                : _rooms.isEmpty
+                ? emptyWidget
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                    child: Center(
+                      child: ConstrainedBox(
+                        // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child: listContent, // Gunakan ListView yang sama!
+                      ),
+                    ),
+                  ),
+          );
+        },
       ),
     );
   }

@@ -50,15 +50,14 @@ class _ExperiencesScreenState extends State<ExperiencesScreen> {
       context: context,
       builder: (dialogContext) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        // ✅ KUNCI: Berikan ukuran pasti pada dialog
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.85, // 85% dari lebar layar
+        // ✅ PERBAIKAN: Batasi lebar maksimal dialog agar tidak stretched di desktop
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600), 
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Gambar dengan ukuran pasti
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   child: Image.network(
@@ -74,14 +73,12 @@ class _ExperiencesScreenState extends State<ExperiencesScreen> {
                     ),
                   ),
                 ),
-                
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Judul dengan Icon
                       Row(
                         children: [
                           Icon(_getIconData(exp.iconName), color: AppColors.primaryGold, size: 24),
@@ -102,8 +99,6 @@ class _ExperiencesScreenState extends State<ExperiencesScreen> {
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 16),
-                      
-                      // Deskripsi
                       const Text(
                         'About this experience',
                         style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
@@ -114,8 +109,6 @@ class _ExperiencesScreenState extends State<ExperiencesScreen> {
                         style: const TextStyle(fontFamily: 'Lato', fontSize: 14, color: AppColors.textGrey, height: 1.6),
                       ),
                       const SizedBox(height: 24),
-                      
-                      // Info Box
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
@@ -130,21 +123,13 @@ class _ExperiencesScreenState extends State<ExperiencesScreen> {
                             Expanded(
                               child: Text(
                                 'This is an informational guide. Please inquire with our concierge team for availability and arrangements.',
-                                style: TextStyle(
-                                  fontFamily: 'Lato', 
-                                  fontSize: 12, 
-                                  color: AppColors.darkCharcoal, 
-                                  fontStyle: FontStyle.italic
-                                ),
+                                style: TextStyle(fontFamily: 'Lato', fontSize: 12, color: AppColors.darkCharcoal, fontStyle: FontStyle.italic),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      
                       const SizedBox(height: 16),
-                      
-                      // Tombol Close
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -182,98 +167,135 @@ class _ExperiencesScreenState extends State<ExperiencesScreen> {
         ),
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
-          : _experiences.isEmpty
-          ? const Center(
-              child: Text(
-                'No experiences available at the moment.',
-                style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // ✅ LOGIKA DINAMIS: Jumlah kolom beradaptasi dengan lebar layar
+          int crossAxisCount = 2;
+          if (constraints.maxWidth >= 900) {
+            crossAxisCount = 4; // Desktop: 4 kolom
+          } else if (constraints.maxWidth >= 600) {
+            crossAxisCount = 3; // Tablet: 3 kolom
+          }
+
+          // ✅ Ekstrak Grid ke variabel agar tidak duplikat kode
+          final gridContent = RefreshIndicator(
+            onRefresh: _fetchExperiences,
+            color: AppColors.primaryGold,
+            child: GridView.builder(
+              padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.75,
               ),
-            )
-          : RefreshIndicator(
-              onRefresh: _fetchExperiences,
-              color: AppColors.primaryGold,
-              child: GridView.builder(
-                padding: const EdgeInsets.all(16),
-                physics: const AlwaysScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, 
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.75,
-                ),
-                itemCount: _experiences.length,
-                itemBuilder: (context, index) {
-                  final exp = _experiences[index];
-                  
-                  return InkWell(
-                    onTap: () => _showExperienceDetail(exp),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Card(
-                      margin: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 2,
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AspectRatio(
-                            aspectRatio: 1.2,
-                            child: Image.network(
-                              exp.imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: AppColors.offWhite,
-                                child: const Icon(Icons.image_not_supported, size: 48, color: AppColors.textGrey),
-                              ),
+              itemCount: _experiences.length,
+              itemBuilder: (context, index) {
+                final exp = _experiences[index];
+                return InkWell(
+                  onTap: () => _showExperienceDetail(exp),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 2,
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 1.2,
+                          child: Image.network(
+                            exp.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: AppColors.offWhite,
+                              child: const Icon(Icons.image_not_supported, size: 48, color: AppColors.textGrey),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(_getIconData(exp.iconName), color: AppColors.primaryGold, size: 16),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        exp.title,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontFamily: 'Playfair Display',
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.darkCharcoal,
-                                        ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(_getIconData(exp.iconName), color: AppColors.primaryGold, size: 16),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      exp.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontFamily: 'Playfair Display',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.darkCharcoal,
                                       ),
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Tap for details',
-                                  style: TextStyle(
-                                    fontFamily: 'Lato',
-                                    fontSize: 11,
-                                    color: AppColors.primaryGold,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
                                   ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Tap for details',
+                                style: TextStyle(
+                                  fontFamily: 'Lato',
+                                  fontSize: 11,
+                                  color: AppColors.primaryGold,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  );
-                },
+                  ),
+                );
+              },
+            ),
+          );
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) return const Center(child: CircularProgressIndicator(color: AppColors.primaryGold));
+            if (_experiences.isEmpty) return const Center(child: Text('No experiences available at the moment.', style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey)));
+            return gridContent;
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Grid + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF7F5F0), Color(0xFFEDE7DA), Color(0xFFF7F5F0)],
               ),
             ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+                : _experiences.isEmpty
+                    ? const Center(child: Text('No experiences available at the moment.', style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey)))
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24.0),
+                        child: Center(
+                          child: ConstrainedBox(
+                            // ✅ 1000px adalah lebar ideal untuk menampung 4 kolom kartu yang proporsional
+                            constraints: const BoxConstraints(maxWidth: 1000),
+                            child: gridContent,
+                          ),
+                        ),
+                      ),
+          );
+        },
+      ),
     );
   }
 }

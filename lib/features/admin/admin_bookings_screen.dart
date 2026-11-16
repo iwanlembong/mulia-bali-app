@@ -17,7 +17,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = true;
-  
+
   // ✅ Simpan semua data di memori untuk filtering & counting instan
   List<Order> _allOrders = [];
 
@@ -51,10 +51,10 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
   // ✅ DIPERBARUI: Ambil semua data, filtering dilakukan secara lokal
   Future<void> _fetchOrders() async {
     setState(() => _isLoading = true);
-    
+
     // Ambil semua order tanpa filter agar kita bisa menghitung total per tab
     final orders = await OrderService.getAllOrders(statusFilter: null);
-    
+
     if (mounted) {
       setState(() {
         _allOrders = orders;
@@ -66,7 +66,9 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
   // ✅ HELPER: Filter data secara lokal berdasarkan tab yang aktif
   List<Order> _getFilteredOrders(String tab) {
     if (tab == 'All') return _allOrders;
-    return _allOrders.where((order) => order.status == tab.toLowerCase()).toList();
+    return _allOrders
+        .where((order) => order.status == tab.toLowerCase())
+        .toList();
   }
 
   Color _getStatusColor(String status) {
@@ -86,6 +88,13 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Definisikan konten inti (TabBarView) HANYA SATU KALI agar kode tetap DRY
+    final coreContent = TabBarView(
+      controller: _tabController,
+      children: _tabs.map((tab) => _buildOrdersList(tab)).toList(),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -99,7 +108,6 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
           ),
         ),
         centerTitle: true,
-        // ✅ TAB BAR DENGAN BADGE COUNTER (Sama persis dengan MyBookingsScreen)
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -145,9 +153,42 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
           }).toList(),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: _tabs.map((tab) => _buildOrdersList(tab)).toList(),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return coreContent; // Kembalikan TabBarView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 24.0,
+              ), // Beri ruang napas di atas/bawah
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ Batasi lebar maksimal agar kartu dan tab tidak "melebar" aneh di desktop
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: coreContent, // Gunakan TabBarView yang sama persis!
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -205,9 +246,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
   Widget _buildOrderCard(Order order) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
@@ -251,7 +290,10 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _getStatusColor(order.status).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -268,7 +310,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // 2. User Name
               Text(
                 order.userName ?? 'Unknown User',
@@ -278,13 +320,14 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
                   color: AppColors.textGrey,
                 ),
               ),
-              
+
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 12),
 
               // ✅ Badge Diskon (Promo atau Voucher)
-              if (order.discountAmount > 0 || order.voucherDiscountAmount > 0) ...[
+              if (order.discountAmount > 0 ||
+                  order.voucherDiscountAmount > 0) ...[
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -292,16 +335,26 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
                     // Badge Promo (Hijau)
                     if (order.discountAmount > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.green.withOpacity(0.4), width: 0.5),
+                          border: Border.all(
+                            color: Colors.green.withOpacity(0.4),
+                            width: 0.5,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.local_offer, size: 12, color: Colors.green),
+                            const Icon(
+                              Icons.local_offer,
+                              size: 12,
+                              color: Colors.green,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Promo: -${_currencyFormat.format(order.discountAmount)}',
@@ -315,20 +368,30 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
                           ],
                         ),
                       ),
-                    
+
                     // Badge Voucher (Ungu)
                     if (order.voucherDiscountAmount > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.purple.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.purple.withOpacity(0.4), width: 0.5),
+                          border: Border.all(
+                            color: Colors.purple.withOpacity(0.4),
+                            width: 0.5,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.card_giftcard, size: 12, color: Colors.purple),
+                            const Icon(
+                              Icons.card_giftcard,
+                              size: 12,
+                              color: Colors.purple,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Voucher: -${_currencyFormat.format(order.voucherDiscountAmount)}',
@@ -353,7 +416,11 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen>
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today, size: 14, color: AppColors.textGrey),
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: AppColors.textGrey,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         order.formattedDate,

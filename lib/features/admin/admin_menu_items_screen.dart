@@ -116,12 +116,18 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
     final messenger = ScaffoldMessenger.of(context);
 
     final nameController = TextEditingController(text: existing['name'] ?? '');
-    final descController = TextEditingController(text: existing['description'] ?? '');
+    final descController = TextEditingController(
+      text: existing['description'] ?? '',
+    );
     final priceController = TextEditingController(
       text: existing['price']?.toString() ?? '',
     );
-    final categoryController = TextEditingController(text: existing['category'] ?? '');
-    final imageController = TextEditingController(text: existing['image_url'] ?? '');
+    final categoryController = TextEditingController(
+      text: existing['category'] ?? '',
+    );
+    final imageController = TextEditingController(
+      text: existing['image_url'] ?? '',
+    );
     final sortController = TextEditingController(
       text: existing['sort_order']?.toString() ?? '0',
     );
@@ -138,13 +144,16 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Menu Item Name *'),
+                  decoration: const InputDecoration(
+                    labelText: 'Menu Item Name *',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: categoryController,
                   decoration: const InputDecoration(
-                    labelText: 'Category (e.g., Appetizer, Main Course, Dessert)',
+                    labelText:
+                        'Category (e.g., Appetizer, Main Course, Dessert)',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -162,7 +171,9 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: imageController,
-                  decoration: const InputDecoration(labelText: 'Image URL (Optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Image URL (Optional)',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -175,7 +186,8 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
                   children: [
                     Checkbox(
                       value: isAvailable,
-                      onChanged: (val) => setDialogState(() => isAvailable = val ?? true),
+                      onChanged: (val) =>
+                          setDialogState(() => isAvailable = val ?? true),
                     ),
                     const Text('Is Available'),
                   ],
@@ -198,7 +210,9 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
                   'category': categoryController.text.trim(),
                   'description': descController.text.trim(),
                   'price': int.tryParse(priceController.text) ?? 0,
-                  'image_url': imageController.text.trim().isEmpty ? null : imageController.text.trim(),
+                  'image_url': imageController.text.trim().isEmpty
+                      ? null
+                      : imageController.text.trim(),
                   'sort_order': int.tryParse(sortController.text) ?? 0,
                   'is_available': isAvailable,
                 };
@@ -223,7 +237,9 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
 
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text(isEdit ? 'Updated successfully' : 'Added successfully'),
+                      content: Text(
+                        isEdit ? 'Updated successfully' : 'Added successfully',
+                      ),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -248,6 +264,128 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'listContent' = ListView Anda yang SAMA PERSIS, tidak diubah
+    final listContent = ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _menuItems.length,
+      itemBuilder: (context, index) {
+        final m = _menuItems[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            leading: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: const Color(0xFF6B8E23).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.restaurant_menu,
+                color: Color(0xFF6B8E23),
+              ),
+            ),
+            title: Text(
+              m['name'],
+              style: const TextStyle(
+                fontFamily: 'Playfair Display',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  _currencyFormat.format(m['price'] ?? 0),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryGold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.category,
+                      size: 14,
+                      color: AppColors.textGrey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      m['category'] ?? 'Uncategorized',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textGrey,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  tooltip: 'Edit',
+                  onPressed: () => _showMenuItemDialog(menuItem: m),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Delete',
+                  onPressed: () => _deleteMenuItem(m['id'], m['name']),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // ✅ Widget reusable untuk state kosong & loading (agar tidak duplikat kode)
+    final loadingWidget = const Center(
+      child: CircularProgressIndicator(color: AppColors.primaryGold),
+    );
+
+    final emptyWidget = Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.restaurant_menu_outlined,
+            size: 64,
+            color: AppColors.textGrey,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No menu items found for ${widget.restaurantName}.',
+            style: const TextStyle(
+              fontFamily: 'Lato',
+              color: AppColors.textGrey,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => _showMenuItemDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add First Menu Item'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGold,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -256,10 +394,17 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Manage Menu Items', style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal)),
+            const Text(
+              'Manage Menu Items',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+            ),
             Text(
               widget.restaurantName,
-              style: const TextStyle(fontFamily: 'Playfair Display', fontWeight: FontWeight.bold, fontSize: 18),
+              style: const TextStyle(
+                fontFamily: 'Playfair Display',
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
@@ -268,109 +413,53 @@ class _AdminMenuItemsScreenState extends State<AdminMenuItemsScreen> {
           onPressed: () => context.go('/admin/restaurants'),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
-          : _menuItems.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.restaurant_menu_outlined, size: 64, color: AppColors.textGrey),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No menu items found for ${widget.restaurantName}.',
-                        style: const TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () => _showMenuItemDialog(),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add First Menu Item'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryGold,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _menuItems.length,
-                  itemBuilder: (context, index) {
-                    final m = _menuItems[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6B8E23).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.restaurant_menu, color: Color(0xFF6B8E23)),
-                        ),
-                        title: Text(
-                          m['name'],
-                          style: const TextStyle(
-                            fontFamily: 'Playfair Display',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              _currencyFormat.format(m['price'] ?? 0),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryGold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.category, size: 14, color: AppColors.textGrey),
-                                const SizedBox(width: 4),
-                                Text(
-                                  m['category'] ?? 'Uncategorized',
-                                  style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              tooltip: 'Edit',
-                              onPressed: () => _showMenuItemDialog(menuItem: m),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              tooltip: 'Delete',
-                              onPressed: () => _deleteMenuItem(m['id'], m['name']),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showMenuItemDialog(),
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Menu Item'),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) return loadingWidget;
+            if (_menuItems.isEmpty) return emptyWidget;
+            return listContent; // Kembalikan ListView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: _isLoading
+                ? loadingWidget
+                : _menuItems.isEmpty
+                ? emptyWidget
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                    child: Center(
+                      child: ConstrainedBox(
+                        // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child: listContent, // Gunakan ListView yang sama!
+                      ),
+                    ),
+                  ),
+          );
+        },
       ),
     );
   }

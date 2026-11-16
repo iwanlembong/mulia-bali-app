@@ -54,8 +54,16 @@ class _AdminPaymentVerificationScreenState
       final payments = await PaymentService.getPendingPayments();
 
       // 2. Pisahkan ID Order dan Reservation untuk di-fetch detailnya
-      final orderIds = payments.where((p) => p.orderId != null).map((p) => p.orderId!).toSet().toList();
-      final resIds = payments.where((p) => p.reservationId != null).map((p) => p.reservationId!).toSet().toList();
+      final orderIds = payments
+          .where((p) => p.orderId != null)
+          .map((p) => p.orderId!)
+          .toSet()
+          .toList();
+      final resIds = payments
+          .where((p) => p.reservationId != null)
+          .map((p) => p.reservationId!)
+          .toSet()
+          .toList();
 
       // Kumpulkan semua user_id unik
       Set<String> userIds = {};
@@ -65,7 +73,9 @@ class _AdminPaymentVerificationScreenState
       if (orderIds.isNotEmpty) {
         final ordersData = await Supabase.instance.client
             .from('orders')
-            .select('id, order_number, total_amount, user_id') // ✅ AMAN: user_id
+            .select(
+              'id, order_number, total_amount, user_id',
+            ) // ✅ AMAN: user_id
             .inFilter('id', orderIds);
 
         for (var order in ordersData) {
@@ -75,7 +85,7 @@ class _AdminPaymentVerificationScreenState
             'payment': payment,
             'id': order['id'],
             'title': order['order_number'],
-            'user_id': order['user_id'], 
+            'user_id': order['user_id'],
             'subtitle': 'Service Booking',
             'total_amount': order['total_amount'] as int,
           });
@@ -87,17 +97,21 @@ class _AdminPaymentVerificationScreenState
       if (resIds.isNotEmpty) {
         final resData = await Supabase.instance.client
             .from('reservations')
-            .select('id, reservation_number, total_amount, user_id, check_in, check_out') // ✅ AMAN: user_id
+            .select(
+              'id, reservation_number, total_amount, user_id, check_in, check_out',
+            ) // ✅ AMAN: user_id
             .inFilter('id', resIds);
 
         for (var res in resData) {
           if (res['user_id'] != null) userIds.add(res['user_id']);
-          final payment = payments.firstWhere((p) => p.reservationId == res['id']);
+          final payment = payments.firstWhere(
+            (p) => p.reservationId == res['id'],
+          );
           enrichedReservations.add({
             'payment': payment,
             'id': res['id'],
             'title': res['reservation_number'],
-            'user_id': res['user_id'], 
+            'user_id': res['user_id'],
             'subtitle': 'Accommodation',
             'total_amount': res['total_amount'] as int,
             'check_in': res['check_in'],
@@ -139,7 +153,10 @@ class _AdminPaymentVerificationScreenState
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load data: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed to load data: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -303,7 +320,7 @@ class _AdminPaymentVerificationScreenState
               .select('*, user_id') // Ambil semua data order + user_id
               .eq('id', targetId)
               .single();
-          
+
           // Ambil profil user
           final profile = await Supabase.instance.client
               .from('profiles')
@@ -317,11 +334,11 @@ class _AdminPaymentVerificationScreenState
           if (userEmail != null && userEmail.isNotEmpty) {
             // Buat object Order sementara dari Map agar kompatibel dengan EmailService Anda
             final orderObj = Order.fromMap(orderData);
-            
+
             EmailService.sendEmail(
               to: userEmail,
-              subject: action == 'verified' 
-                  ? 'Payment Verified - ${orderObj.orderNumber}' 
+              subject: action == 'verified'
+                  ? 'Payment Verified - ${orderObj.orderNumber}'
                   : 'Payment Revision Required - ${orderObj.orderNumber}',
               htmlContent: EmailService.generateStatusUpdateTemplate(
                 orderObj, // ✅ Sekarang kita kirim object Order yang valid
@@ -338,7 +355,7 @@ class _AdminPaymentVerificationScreenState
               .select('*, user_id')
               .eq('id', targetId)
               .single();
-              
+
           final profile = await Supabase.instance.client
               .from('profiles')
               .select('email, full_name')
@@ -350,11 +367,11 @@ class _AdminPaymentVerificationScreenState
 
           if (userEmail != null && userEmail.isNotEmpty) {
             final resObj = Reservation.fromMap(resData);
-            
+
             EmailService.sendEmail(
               to: userEmail,
-              subject: action == 'verified' 
-                  ? 'Payment Verified - ${resObj.reservationNumber}' 
+              subject: action == 'verified'
+                  ? 'Payment Verified - ${resObj.reservationNumber}'
                   : 'Payment Revision Required - ${resObj.reservationNumber}',
               htmlContent: EmailService.generateStatusUpdateTemplate(
                 resObj, // ✅ Kirim object Reservation yang valid
@@ -367,7 +384,9 @@ class _AdminPaymentVerificationScreenState
         }
       } catch (emailError) {
         // ✅ FAIL-SAFE: Jika email gagal, jangan gagalkan seluruh proses verifikasi
-        print('⚠️ [ADMIN] Email notification failed, but payment status updated: $emailError');
+        print(
+          '⚠️ [ADMIN] Email notification failed, but payment status updated: $emailError',
+        );
       }
 
       if (mounted) {
@@ -450,6 +469,13 @@ class _AdminPaymentVerificationScreenState
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Definisikan konten inti (TabBarView) HANYA SATU KALI agar kode tetap DRY
+    final coreContent = TabBarView(
+      controller: _tabController,
+      children: [_buildReservationList(), _buildOrderList()],
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -476,14 +502,55 @@ class _AdminPaymentVerificationScreenState
           ],
         ),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : TabBarView(
-              controller: _tabController,
-              children: [_buildReservationList(), _buildOrderList()],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryGold),
+              );
+            }
+            return coreContent; // Kembalikan TabBarView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
             ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryGold,
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 24.0,
+                    ), // Beri ruang napas di atas/bawah
+                    child: Center(
+                      child: ConstrainedBox(
+                        // ✅ Batasi lebar maksimal agar kartu verifikasi dan tab tidak "melebar" aneh di desktop
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child:
+                            coreContent, // Gunakan TabBarView yang sama persis!
+                      ),
+                    ),
+                  ),
+          );
+        },
+      ),
     );
   }
 

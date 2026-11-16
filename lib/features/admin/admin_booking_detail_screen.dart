@@ -556,6 +556,367 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
       );
     }
 
+    // ✅ 1. Ekstrak seluruh konten Column ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final contentColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. User & Order Info
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _order!.orderNumber,
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Chip(
+                    label: Text(_order!.statusLabel),
+                    backgroundColor: _getStatusColor(_order!.status)
+                        .withOpacity(0.1),
+                    labelStyle: TextStyle(
+                      color: _getStatusColor(_order!.status),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              _buildInfoRow('Guest Name', _order!.userName ?? 'Unknown'),
+              const SizedBox(height: 8),
+              _buildInfoRow('Email', _order!.userEmail ?? 'No Email'),
+              const SizedBox(height: 8),
+              _buildInfoRow('Booking Date', _order!.formattedDate),
+              if (_order!.notes != null && _order!.notes!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _buildInfoRow('Notes', _order!.notes!),
+              ],
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+        const Text(
+          'Booked Items',
+          style: TextStyle(
+            fontFamily: 'Playfair Display',
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // 2. Items List
+        ..._order!.items
+            .map(
+              (item) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.itemName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '× ${item.quantity}',
+                            style: const TextStyle(color: AppColors.textGrey),
+                          ),
+                        ],
+                      ),
+                      if (_formatMetadata(item).isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _formatMetadata(item),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textGrey,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      const Divider(height: 1),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _currencyFormat.format(item.unitPrice),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textGrey,
+                            ),
+                          ),
+                          Text(
+                            _currencyFormat.format(item.totalPrice),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryGold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+
+        // ✅ Detail & Status Khusus Wedding
+        if (_order!.items.any((item) => item.itemType == 'wedding')) ...[
+          const SizedBox(height: 24),
+          if (_order!.status == 'pending') ...[
+            _buildElegantWeddingCard(),
+          ] else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    color: Colors.green.shade700,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Booking Confirmed & Locked',
+                          style: TextStyle(
+                            fontFamily: 'Playfair Display',
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                            fontSize: 15,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Negotiation, discounts, and payment adjustments are now locked.',
+                          style: TextStyle(color: Colors.green, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+
+        const SizedBox(height: 24),
+
+        // 3. Total Summary
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.darkCharcoal,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Payment Summary',
+                style: TextStyle(
+                  fontFamily: 'Playfair Display',
+                  fontSize: 16,
+                  color: Colors.white70,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Subtotal',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  Text(
+                    _currencyFormat.format(
+                      _order!.totalAmount +
+                          _order!.discountAmount +
+                          _order!.voucherDiscountAmount,
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+              if (_order!.discountAmount > 0) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Promo (${_order!.promoCode ?? 'Code'})',
+                      style: const TextStyle(color: Colors.greenAccent),
+                    ),
+                    Text(
+                      '- ${_currencyFormat.format(_order!.discountAmount)}',
+                      style: const TextStyle(
+                        color: Colors.greenAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (_order!.voucherDiscountAmount > 0) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Voucher Discount',
+                      style: TextStyle(color: Colors.purpleAccent),
+                    ),
+                    Text(
+                      '- ${_currencyFormat.format(_order!.voucherDiscountAmount)}',
+                      style: const TextStyle(
+                        color: Colors.purpleAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const Divider(height: 32, color: Colors.white24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'TOTAL DUE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    _currencyFormat.format(_order!.totalAmount),
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryGold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+        _buildPaymentHistoryCard(),
+
+        // ✅ Tampilan Bukti Pembayaran (Jika ada)
+        if (_order!.paymentProofUrl != null &&
+            _order!.paymentProofUrl!.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const Text(
+            'Payment Proof',
+            style: TextStyle(
+              fontFamily: 'Playfair Display',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                _order!.paymentProofUrl!,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 200,
+                    color: Colors.grey.shade100,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryGold,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: Colors.grey.shade200,
+                  child: const Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 32),
+
+        // 4. Action Buttons
+        if (_isUpdating)
+          const Center(child: CircularProgressIndicator())
+        else
+          _buildActionButtons(),
+
+        const SizedBox(height: 32),
+      ],
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -569,388 +930,46 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. User & Order Info
-            Container(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _order!.orderNumber,
-                        style: const TextStyle(
-                          fontFamily: 'Playfair Display',
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Chip(
-                        label: Text(_order!.statusLabel),
-                        backgroundColor: _getStatusColor(_order!.status)
-                            .withOpacity(0.1),
-                        labelStyle: TextStyle(
-                          color: _getStatusColor(_order!.status),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  _buildInfoRow('Guest Name', _order!.userName ?? 'Unknown'),
-                  const SizedBox(height: 8),
-                  _buildInfoRow('Email', _order!.userEmail ?? 'No Email'),
-                  const SizedBox(height: 8),
-                  _buildInfoRow('Booking Date', _order!.formattedDate),
-                  if (_order!.notes != null && _order!.notes!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _buildInfoRow('Notes', _order!.notes!),
-                  ],
+              child: contentColumn,
+            );
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
-            const Text(
-              'Booked Items',
-              style: TextStyle(
-                fontFamily: 'Playfair Display',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24.0,
+                    horizontal: 16.0,
+                  ),
+                  child: contentColumn, // Gunakan Column yang sama persis!
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-
-            // 2. Items List
-            ..._order!.items
-                .map(
-                  (item) => Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item.itemName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '× ${item.quantity}',
-                                style: const TextStyle(
-                                  color: AppColors.textGrey,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_formatMetadata(item).isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              _formatMetadata(item),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textGrey,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 8),
-                          const Divider(height: 1),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _currencyFormat.format(item.unitPrice),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textGrey,
-                                ),
-                              ),
-                              Text(
-                                _currencyFormat.format(item.totalPrice),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primaryGold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-
-            // ✅ BARU: Detail & Status Khusus Wedding (Muncul HANYA jika ada item wedding)
-            if (_order!.items.any((item) => item.itemType == 'wedding')) ...[
-              const SizedBox(height: 24),
-
-              if (_order!.status == 'pending') ...[
-                _buildElegantWeddingCard(), // <-- Memanggil widget baru yang elegan
-              ] else
-                // ✅ JIKA SUDAH CONFIRMED/COMPLETED, TAMPILKAN PESAN INI
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.lock_outline,
-                        color: Colors.green.shade700,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Booking Confirmed & Locked',
-                              style: TextStyle(
-                                fontFamily: 'Playfair Display',
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                                fontSize: 15,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Negotiation, discounts, and payment adjustments are now locked.',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-
-            const SizedBox(height: 24),
-
-            // 3. Total Summary
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.darkCharcoal,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Payment Summary',
-                    style: TextStyle(
-                      fontFamily: 'Playfair Display',
-                      fontSize: 16,
-                      color: Colors.white70,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Subtotal
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Subtotal',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                      Text(
-                        _currencyFormat.format(
-                          _order!.totalAmount +
-                              _order!.discountAmount +
-                              _order!.voucherDiscountAmount,
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-
-                  // Diskon Promo
-                  if (_order!.discountAmount > 0) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Promo (${_order!.promoCode ?? 'Code'})',
-                          style: const TextStyle(color: Colors.greenAccent),
-                        ),
-                        Text(
-                          '- ${_currencyFormat.format(_order!.discountAmount)}',
-                          style: const TextStyle(
-                            color: Colors.greenAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-
-                  // Diskon Voucher
-                  if (_order!.voucherDiscountAmount > 0) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Voucher Discount',
-                          style: TextStyle(color: Colors.purpleAccent),
-                        ),
-                        Text(
-                          '- ${_currencyFormat.format(_order!.voucherDiscountAmount)}',
-                          style: const TextStyle(
-                            color: Colors.purpleAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-
-                  const Divider(height: 32, color: Colors.white24),
-
-                  // TOTAL FINAL
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'TOTAL DUE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          letterSpacing: 1.5,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Text(
-                        _currencyFormat.format(_order!.totalAmount),
-                        style: const TextStyle(
-                          fontFamily: 'Playfair Display',
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryGold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-            _buildPaymentHistoryCard(),
-
-            // ✅ BARU: Tampilan Bukti Pembayaran (Jika ada)
-            if (_order!.paymentProofUrl != null &&
-                _order!.paymentProofUrl!.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              const Text(
-                'Payment Proof',
-                style: TextStyle(
-                  fontFamily: 'Playfair Display',
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    _order!.paymentProofUrl!,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 200,
-                        color: Colors.grey.shade100,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primaryGold,
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 200,
-                      color: Colors.grey.shade200,
-                      child: const Center(
-                        child: Icon(
-                          Icons.broken_image,
-                          size: 48,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 32),
-
-            // 4. Action Buttons
-            if (_isUpdating)
-              const Center(child: CircularProgressIndicator())
-            else
-              _buildActionButtons(),
-
-            const SizedBox(height: 32),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -1305,7 +1324,7 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
   }
 
   // ✅ UI PREMIUM: Payment History yang konsisten dengan style Dossier
-    Widget _buildPaymentHistoryCard() {
+  Widget _buildPaymentHistoryCard() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1389,99 +1408,104 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
             // ✅ PERUBAHAN DI SINI: Dibungkus Column agar bisa tambah kartu di bawah
             Column(
               children: [
-                ..._adminPayments.map((payment) => Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: payment.isVerified
-                              ? Colors.green.shade100
-                              : Colors.grey.shade200,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            payment.isVerified
-                                ? Icons.check_circle
-                                : (payment.isRejected
-                                    ? Icons.cancel
-                                    : Icons.hourglass_empty),
-                            color: payment.statusColor,
-                            size: 22,
+                ..._adminPayments
+                    .map(
+                      (payment) => Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: payment.isVerified
+                                ? Colors.green.shade100
+                                : Colors.grey.shade200,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              payment.isVerified
+                                  ? Icons.check_circle
+                                  : (payment.isRejected
+                                        ? Icons.cancel
+                                        : Icons.hourglass_empty),
+                              color: payment.statusColor,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    payment.paymentType,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      fontFamily: 'Lato',
+                                    ),
+                                  ),
+                                  Text(
+                                    payment.formattedDate,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  if (payment.isRejected &&
+                                      payment.rejectionReason != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Note: ${payment.rejectionReason}',
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 10,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  payment.paymentType,
+                                  payment.formattedAmount,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
-                                    fontFamily: 'Lato',
+                                    fontFamily: 'Playfair Display',
                                   ),
                                 ),
-                                Text(
-                                  payment.formattedDate,
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 11,
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
                                   ),
-                                ),
-                                if (payment.isRejected && payment.rejectionReason != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      'Note: ${payment.rejectionReason}',
-                                      style: const TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 10,
-                                        fontStyle: FontStyle.italic,
-                                      ),
+                                  decoration: BoxDecoration(
+                                    color: payment.statusColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    payment.statusLabel,
+                                    style: TextStyle(
+                                      color: payment.statusColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
+                                ),
                               ],
                             ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                payment.formattedAmount,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  fontFamily: 'Playfair Display',
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: payment.statusColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  payment.statusLabel,
-                                  style: TextStyle(
-                                    color: payment.statusColor,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    )).toList(),
+                    )
+                    .toList(),
 
                 // ✅ BARU: Kartu Outstanding Balance (Jika masih ada sisa)
                 if (_getOutstandingBalance() > 0)
@@ -1495,7 +1519,10 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.shade300, width: 1.5),
+                      border: Border.all(
+                        color: Colors.orange.shade300,
+                        width: 1.5,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -1550,7 +1577,6 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
                       ],
                     ),
                   )
-                
                 // ✅ BARU: Kartu Fully Paid (Jika sudah lunas)
                 else if (_adminPayments.isNotEmpty)
                   Container(
@@ -1563,7 +1589,10 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.shade300, width: 1.5),
+                      border: Border.all(
+                        color: Colors.green.shade300,
+                        width: 1.5,
+                      ),
                     ),
                     child: Row(
                       children: [

@@ -86,20 +86,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Definisikan konten inti (TabBarView) HANYA SATU KALI agar kode tetap DRY
+    final coreContent = TabBarView(
+      controller: _tabController,
+      children: _tabs.map((tab) => _buildOrdersList(tab)).toList(),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
-        // ✅ TAMBAHKAN BAGIAN INI: Tombol Kembali ke Home
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            // Cek apakah ada halaman sebelumnya yang bisa di-pop
             if (Navigator.canPop(context)) {
               context.pop();
             } else {
-              // Jika tidak ada (karena kita pakai context.go), paksa kembali ke Home
               context.go('/');
             }
           },
@@ -157,9 +161,42 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           }).toList(),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: _tabs.map((tab) => _buildOrdersList(tab)).toList(),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return coreContent; // Kembalikan TabBarView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 24.0,
+              ), // Beri ruang napas di atas/bawah
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ Batasi lebar maksimal agar kartu dan tab tidak "melebar" aneh di desktop
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: coreContent, // Gunakan TabBarView yang sama persis!
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

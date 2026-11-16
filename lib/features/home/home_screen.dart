@@ -256,518 +256,536 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // 1. SLIDESHOW HEADER
-          SliverAppBar(
-            expandedHeight: 350,
-            pinned: true,
-            actions: [
-              // ✅ BARU: Icon Cart dengan Badge
-              if (AuthService.isLoggedIn)
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.shopping_bag_outlined,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                      onPressed: () {
-                        context.push('/cart').then((_) => _fetchCartCount());
-                      },
+    // ✅ 1. VARIABEL RESPONSIF (Tanpa warning, di-inline)
+    final isDesktop = MediaQuery.sizeOf(context).width > 768;
+    final heroHeight = isDesktop ? 460.0 : 350.0;
+    final heroPadH = isDesktop ? 60.0 : 24.0;
+    final heroTitleSize = isDesktop ? 44.0 : 36.0;
+    final heroSubSize = isDesktop ? 18.0 : 16.0;
+    final heroTextBottom = isDesktop ? 90.0 : 60.0;
+    final heroDotBottom = isDesktop ? 34.0 : 24.0;
+
+    // ✅ 2. Ekstrak CustomScrollView (DRY Principle)
+    final scrollView = CustomScrollView(
+      slivers: [
+        // 1. SLIDESHOW HEADER
+        SliverAppBar(
+          expandedHeight: heroHeight, // ✅ Menggunakan variabel
+          pinned: true,
+          actions: [
+            if (AuthService.isLoggedIn)
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.shopping_bag_outlined,
+                      color: Colors.white,
+                      size: 26,
                     ),
-                    if (_cartItemCount > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
+                    onPressed: () {
+                      context.push('/cart').then((_) => _fetchCartCount());
+                    },
+                  ),
+                  if (_cartItemCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          '$_cartItemCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
-                          constraints: const BoxConstraints(
-                            minWidth: 18,
-                            minHeight: 18,
-                          ),
-                          child: Text(
-                            '$_cartItemCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                  ],
-                ),
-              _avatarUrl != null && _avatarUrl!.isNotEmpty
-                  ? GestureDetector(
-                      onTap: () {
+                    ),
+                ],
+              ),
+            _avatarUrl != null && _avatarUrl!.isNotEmpty
+                ? GestureDetector(
+                    onTap: () {
+                      final shellState = context
+                          .findAncestorStateOfType<MainShellState>();
+                      if (shellState != null) shellState.onItemTapped(3);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 16.0),
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundImage: NetworkImage(_avatarUrl!),
+                        backgroundColor: AppColors.primaryGold,
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(
+                      Icons.person_outline,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () {
+                      if (AuthService.isLoggedIn) {
                         final shellState = context
                             .findAncestorStateOfType<MainShellState>();
                         if (shellState != null) shellState.onItemTapped(3);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 16.0),
-                        child: CircleAvatar(
-                          radius: 18,
-                          backgroundImage: NetworkImage(_avatarUrl!),
-                          backgroundColor: AppColors.primaryGold,
-                        ),
-                      ),
-                    )
-                  : IconButton(
-                      icon: const Icon(
-                        Icons.person_outline,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        if (AuthService.isLoggedIn) {
-                          final shellState = context
-                              .findAncestorStateOfType<MainShellState>();
-                          if (shellState != null) shellState.onItemTapped(3);
-                        } else {
-                          context.push('/login');
-                        }
-                      },
+                      } else {
+                        context.push('/login');
+                      }
+                    },
+                  ),
+            const SizedBox(width: 8),
+          ],
+          flexibleSpace: FlexibleSpaceBar(
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_isLoadingHeroSlides)
+                  const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryGold,
                     ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_isLoadingHeroSlides)
-                    const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primaryGold,
-                      ),
-                    )
-                  else if (_heroSlides.isNotEmpty)
-                    PageView.builder(
-                      controller: _heroPageController,
-                      onPageChanged: (index) =>
-                          setState(() => _currentHeroPage = index),
-                      itemCount: _heroSlides.length,
-                      itemBuilder: (context, index) {
-                        final slide = _heroSlides[index];
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.network(
-                              slide.imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  Container(color: AppColors.darkCharcoal),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withOpacity(0.8),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 60,
-                              left: 24,
-                              right: 24,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    slide.title,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'Playfair Display',
-                                    ),
-                                  ),
-                                  if (slide.subtitle != null &&
-                                      slide.subtitle!.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      slide.subtitle!,
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 16,
-                                        fontFamily: 'Lato',
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
+                  )
+                else if (_heroSlides.isNotEmpty)
+                  // --- BLOK 1: DYNAMIC SLIDES (DARI DATABASE) ---
+                  PageView.builder(
+                    controller: _heroPageController,
+                    onPageChanged: (index) =>
+                        setState(() => _currentHeroPage = index),
+                    itemCount: _heroSlides.length,
+                    itemBuilder: (context, index) {
+                      final slide = _heroSlides[index];
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            slide.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                Container(color: AppColors.darkCharcoal),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.8),
                                 ],
                               ),
                             ),
-                          ],
-                        );
-                      },
-                    )
-                  else
-                    PageView.builder(
-                      controller: _heroPageController,
-                      onPageChanged: (index) =>
-                          setState(() => _currentHeroPage = index),
-                      itemCount: heroSlides.length,
-                      itemBuilder: (context, index) {
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.network(
-                              heroSlides[index]['image']!,
-                              fit: BoxFit.cover,
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withOpacity(0.8),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 60,
-                              left: 24,
-                              right: 24,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    heroSlides[index]['title']!,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'Playfair Display',
-                                    ),
+                          ),
+                          Positioned(
+                            bottom: heroTextBottom,
+                            left: heroPadH,
+                            right: heroPadH,
+                            child: Column(
+                              // ✅ PERBAIKAN 1: Tambahkan logika isDesktop di sini
+                              crossAxisAlignment: isDesktop
+                                  ? CrossAxisAlignment.center
+                                  : CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  slide.title,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize:
+                                        heroTitleSize, // ✅ Menggunakan variabel
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Playfair Display',
                                   ),
+                                ),
+                                if (slide.subtitle != null &&
+                                    slide.subtitle!.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   Text(
-                                    heroSlides[index]['subtitle']!,
-                                    style: const TextStyle(
+                                    slide.subtitle!,
+                                    style: TextStyle(
                                       color: Colors.white70,
-                                      fontSize: 16,
+                                      fontSize:
+                                          heroSubSize, // ✅ Menggunakan variabel
                                       fontFamily: 'Lato',
                                       letterSpacing: 0.5,
                                     ),
                                   ),
                                 ],
-                              ),
+                              ],
                             ),
-                          ],
-                        );
-                      },
-                    ),
-                  Positioned(
-                    bottom: 24,
-                    left: 0,
-                    right: 0,
-                    child: Builder(
-                      builder: (context) {
-                        final slideCount = _heroSlides.isNotEmpty
-                            ? _heroSlides.length
-                            : heroSlides.length;
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            slideCount,
-                            (index) => AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              height: 8,
-                              width: _currentHeroPage == index ? 24 : 8,
-                              decoration: BoxDecoration(
-                                color: _currentHeroPage == index
-                                    ? AppColors.primaryGold
-                                    : Colors.white54,
-                                borderRadius: BorderRadius.circular(4),
+                          ),
+                        ],
+                      );
+                    },
+                  )
+                else
+                  // --- BLOK 2: FALLBACK SLIDES (STATIC) ---
+                  PageView.builder(
+                    controller: _heroPageController,
+                    onPageChanged: (index) =>
+                        setState(() => _currentHeroPage = index),
+                    itemCount: heroSlides.length,
+                    itemBuilder: (context, index) {
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            heroSlides[index]['image']!,
+                            fit: BoxFit.cover,
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.8),
+                                ],
                               ),
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 2. KONTEN UTAMA
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 16.0),
-                  child: Text(
-                    'Exclusive Accommodations',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Playfair Display',
-                      color: AppColors.darkCharcoal,
-                    ),
-                  ),
-                ),
-
-                // --- CAROUSEL AKOMODASI ---
-                SizedBox(
-                  height: 280,
-                  child: _isLoadingAccommodations
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primaryGold,
+                          Positioned(
+                            bottom: heroTextBottom,
+                            left: heroPadH,
+                            right: heroPadH,
+                            child: Column(
+                              // ✅ PERBAIKAN 2: Ini sudah benar di kode Anda, biarkan begini
+                              crossAxisAlignment: isDesktop
+                                  ? CrossAxisAlignment.center
+                                  : CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  heroSlides[index]['title']!,
+                                  // ✅ PERBAIKAN 3: Hapus 'const' dan pakai variabel agar responsif
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: heroTitleSize,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Playfair Display',
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  heroSlides[index]['subtitle']!,
+                                  // ✅ PERBAIKAN 4: Hapus 'const' dan pakai variabel agar responsif
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: heroSubSize,
+                                    fontFamily: 'Lato',
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        )
-                      : _dynamicAccommodations.isNotEmpty
-                      ? PageView.builder(
-                          controller: _accommodationPageController,
-                          itemCount: _dynamicAccommodations.length,
-                          itemBuilder: (context, index) {
-                            final item = _dynamicAccommodations[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8.0,
-                              ),
-                              child: _buildAccommodationCard(
-                                context,
-                                property: item['property']!,
-                                room: item['room']!,
-                                price: 'IDR ${_formatPrice(item['price'])}',
-                                image: item['image']!,
-                                bedType: item['bed_type'] as String?,
-                                sizeSqm: (item['size_sqm'] as num?)?.toDouble(),
-
-                                // ✅ LOGIKA SANGAT SEDERHANA & LANGSUNG
-                                onTap: () {
-                                  // Ambil ID yang baru saja Anda tambahkan di property_services.dart
-                                  final propertyId = item['id']?.toString();
-
-                                  if (propertyId != null &&
-                                      propertyId.isNotEmpty) {
-                                    print(
-                                      '🚀 [DEBUG] Berhasil! Navigating to property ID: $propertyId',
-                                    );
-                                    context.push('/property/$propertyId');
-                                  } else {
-                                    print(
-                                      '❌ [DEBUG] Gagal menemukan Property ID! Data: $item',
-                                    );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Data properti tidak lengkap',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                            );
-                          },
-                        )
-                      : const Center(
-                          child: Text(
-                            'There are no rooms available at the moment.',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              color: AppColors.textGrey,
-                              fontSize: 14,
+                        ],
+                      );
+                    },
+                  ),
+                Positioned(
+                  bottom: heroDotBottom,
+                  left: 0,
+                  right: 0,
+                  child: Builder(
+                    builder: (context) {
+                      final slideCount = _heroSlides.isNotEmpty
+                          ? _heroSlides.length
+                          : heroSlides.length;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center, // ✅ BIARKAN INI (agar titik-titik di tengah)
+                        children: List.generate(
+                          slideCount,
+                          (index) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            height: 8,
+                            width: _currentHeroPage == index ? 24 : 8,
+                            decoration: BoxDecoration(
+                              color: _currentHeroPage == index
+                                  ? AppColors.primaryGold
+                                  : Colors.white54,
+                              borderRadius: BorderRadius.circular(4),
                             ),
                           ),
                         ),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
+                      );
+                    },
                   ),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => context.push('/properties'),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // 2. KONTEN UTAMA (Sama persis seperti kode Anda sebelumnya, sudah benar)
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 16.0),
+                child: Text(
+                  'Exclusive Accommodations',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Playfair Display',
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 280,
+                child: _isLoadingAccommodations
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryGold,
+                        ),
+                      )
+                    : _dynamicAccommodations.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'There are no rooms available at the moment.',
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            color: AppColors.textGrey,
+                            fontSize: 14,
+                          ),
+                        ),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isMobile = constraints.maxWidth < 600;
+                          if (isMobile) {
+                            return PageView.builder(
+                              controller: _accommodationPageController,
+                              itemCount: _dynamicAccommodations.length,
+                              itemBuilder: (context, index) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0,
+                                  ),
+                                  child: _buildAccommodationItem(
+                                    context,
+                                    _dynamicAccommodations[index],
+                                  ),
+                                );
+                              },
+                            );
+                          }
+                          return ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _dynamicAccommodations.length,
+                            itemBuilder: (context, index) {
+                              return SizedBox(
+                                width: 320,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 16),
+                                  child: _buildAccommodationItem(
+                                    context,
+                                    _dynamicAccommodations[index],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push('/properties'),
+                    child: const Text(
+                      'View All Properties →',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 13,
+                        color: AppColors.primaryGold,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16.0, 32.0, 16.0, 16.0),
+                child: Text(
+                  'Dining & Culinary',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Playfair Display',
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 280,
+                child: _isLoadingRestaurants
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryGold,
+                        ),
+                      )
+                    : _restaurants.isNotEmpty
+                    ? ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _restaurants.length,
+                        itemBuilder: (context, index) =>
+                            _buildRestaurantCard(_restaurants[index]),
+                      )
+                    : const Center(
+                        child: Text(
+                          'No restaurants available at the moment.',
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            color: AppColors.textGrey,
+                          ),
+                        ),
+                      ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16.0, 32.0, 16.0, 16.0),
+                child: Text(
+                  'The Mulia Experience',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Playfair Display',
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Special Offers',
+                      style: TextStyle(
+                        fontFamily: 'Playfair Display',
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkCharcoal,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/offers'),
                       child: const Text(
-                        'View All Properties →',
+                        'See All',
                         style: TextStyle(
                           fontFamily: 'Lato',
-                          fontSize: 13,
                           color: AppColors.primaryGold,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-
-                // --- DINING & CULINARY (BARU) ---
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16.0, 32.0, 16.0, 16.0),
-                  child: Text(
-                    'Dining & Culinary',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Playfair Display',
-                      color: AppColors.darkCharcoal,
+              ),
+              SizedBox(
+                height: 220,
+                child: _isLoadingOffers
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryGold,
+                        ),
+                      )
+                    : _specialOffers.isNotEmpty
+                    ? ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _specialOffers.length > 4
+                            ? 4
+                            : _specialOffers.length,
+                        itemBuilder: (context, index) =>
+                            _buildOfferCard(_specialOffers[index]),
+                      )
+                    : ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _fallbackOffers.length,
+                        itemBuilder: (context, index) =>
+                            _buildOfferCardFromMap(_fallbackOffers[index]),
+                      ),
+              ),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildExperienceCard(
+                        context,
+                        'Spa',
+                        Icons.spa,
+                        const Color(0xFF8B7355),
+                      ),
                     ),
-                  ),
-                ),
-
-                SizedBox(
-                  height: 280,
-                  child: _isLoadingRestaurants
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primaryGold,
-                          ),
-                        )
-                      : _restaurants.isNotEmpty
-                      ? ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _restaurants.length,
-                          itemBuilder: (context, index) {
-                            final restaurant = _restaurants[index];
-                            return _buildRestaurantCard(restaurant);
-                          },
-                        )
-                      : const Center(
-                          child: Text(
-                            'No restaurants available at the moment.',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              color: AppColors.textGrey,
-                            ),
-                          ),
-                        ),
-                ),
-
-                // --- THE MULIA EXPERIENCE (sudah ada) ---
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16.0, 32.0, 16.0, 16.0),
-                  child: Text(
-                    'The Mulia Experience',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Playfair Display',
-                      color: AppColors.darkCharcoal,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildExperienceCard(
+                        context,
+                        'Weddings',
+                        Icons.diamond,
+                        Colors.pink.shade300,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-
-                // --- SPECIAL OFFERS (DINAMIS) ---
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Special Offers',
-                        style: TextStyle(
-                          fontFamily: 'Playfair Display',
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkCharcoal,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => context.push('/offers'),
-                        child: const Text(
-                          'See All',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            color: AppColors.primaryGold,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: 220,
-                  child: _isLoadingOffers
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primaryGold,
-                          ),
-                        )
-                      : _specialOffers.isNotEmpty
-                      ? ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          // ✅ BATASI HANYA 4 ITEM DI HOME SCREEN
-                          itemCount: _specialOffers.length > 4
-                              ? 4
-                              : _specialOffers.length,
-                          itemBuilder: (context, index) {
-                            return _buildOfferCard(_specialOffers[index]);
-                          },
-                        )
-                      : ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _fallbackOffers.length,
-                          itemBuilder: (context, index) =>
-                              _buildOfferCardFromMap(_fallbackOffers[index]),
-                        ),
-                ),
-
-                // ✅ PERBAIKAN: MENGGUNAKAN _buildExperienceCard AGAR TIDAK "UNUSED"
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildExperienceCard(
-                          context,
-                          'Spa',
-                          Icons.spa,
-                          const Color(0xFF8B7355),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildExperienceCard(
-                          context,
-                          'Weddings',
-                          Icons.diamond,
-                          Colors.pink.shade300,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-                const AppFooter(),
-              ],
-            ),
+              ),
+              const SizedBox(height: 32),
+              const AppFooter(),
+            ],
           ),
-        ],
+        ),
+      ],
+    );
+
+    // ✅ 3. Wrapper Responsif PWA-SAFE
+    return Scaffold(
+      backgroundColor: AppColors.offWhite,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // isDesktop di-capture dari scope atas, tidak dideklarasikan ulang (Zero Warning)
+          if (!isDesktop) {
+            return scrollView; // Mobile: apa adanya
+          }
+
+          // Desktop: Batasi lebar maksimal
+          return Container(
+            color: AppColors.offWhite,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: scrollView,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -930,6 +948,35 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       ),
+    );
+  }
+
+  // ✅ HELPER: Bungkus logika kartu akomodasi + navigasi agar tidak diduplikasi
+  Widget _buildAccommodationItem(
+    BuildContext context,
+    Map<String, dynamic> item,
+  ) {
+    return _buildAccommodationCard(
+      context,
+      property: item['property']!,
+      room: item['room']!,
+      price: 'IDR ${_formatPrice(item['price'])}',
+      image: item['image']!,
+      bedType: item['bed_type'] as String?,
+      sizeSqm: (item['size_sqm'] as num?)?.toDouble(),
+      onTap: () {
+        final propertyId = item['id']?.toString();
+        if (propertyId != null && propertyId.isNotEmpty) {
+          context.push('/property/$propertyId');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Data properti tidak lengkap'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
     );
   }
 
@@ -1220,7 +1267,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ),
                         ],
                       ),
-                    const Spacer(),
+                    const SizedBox(
+                      height: 12,
+                    ), // ✅ GANTI DENGAN INI (Aman untuk hit-testing PWA)
                     Row(
                       children: [
                         const Icon(

@@ -271,6 +271,152 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'listContent' = ListView Anda yang SAMA PERSIS, tidak diubah
+    final listContent = ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _properties.length,
+      itemBuilder: (context, index) {
+        final p = _properties[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 50, height: 50,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGold.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.business, color: AppColors.primaryGold),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p['name'],
+                            style: const TextStyle(
+                              fontFamily: 'Playfair Display',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            p['tagline'] ?? 'No tagline',
+                            style: const TextStyle(
+                              fontStyle: FontStyle.italic,
+                              fontSize: 12,
+                              color: AppColors.textGrey,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (p['is_active'] == true)
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 8,
+                            color: (p['is_active'] == true) ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            (p['is_active'] == true) ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: (p['is_active'] == true) ? Colors.green : Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (p['location'] != null && p['location'].toString().isNotEmpty)
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: AppColors.textGrey),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          p['location'],
+                          style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+                        ),
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => context.go(
+                        '/admin/rooms?propertyId=${p['id']}&propertyName=${Uri.encodeComponent(p['name'])}',
+                      ),
+                      icon: const Icon(Icons.meeting_room, size: 18, color: Colors.white),
+                      label: const Text(
+                        'Manage Rooms',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.darkCharcoal,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 2,
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          onPressed: () => _showPropertyDialog(property: p),
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          tooltip: 'Edit',
+                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        ),
+                        IconButton(
+                          onPressed: () => _deleteProperty(p['id'], p['name']),
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          tooltip: 'Delete',
+                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -278,263 +424,98 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
         foregroundColor: Colors.white,
         title: const Text(
           'Manage Properties',
-          style: TextStyle(
-            fontFamily: 'Playfair Display',
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontFamily: 'Playfair Display', fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/admin/dashboard'),
         ),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : _properties.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.business_outlined,
-                    size: 64,
-                    color: AppColors.textGrey,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No properties found.',
-                    style: TextStyle(
-                      fontFamily: 'Lato',
-                      color: AppColors.textGrey,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showPropertyDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add First Property'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGold,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _properties.length,
-              itemBuilder: (context, index) {
-                final p = _properties[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // === HEADER: Icon + Nama + Tagline ===
-                        Row(
-                          children: [
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryGold.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.business,
-                                color: AppColors.primaryGold,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    p['name'],
-                                    style: const TextStyle(
-                                      fontFamily: 'Playfair Display',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    p['tagline'] ?? 'No tagline',
-                                    style: const TextStyle(
-                                      fontStyle: FontStyle.italic,
-                                      fontSize: 12,
-                                      color: AppColors.textGrey,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Badge status
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (p['is_active'] == true)
-                                    ? Colors.green.withOpacity(0.1)
-                                    : Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.circle,
-                                    size: 8,
-                                    color: (p['is_active'] == true)
-                                        ? Colors.green
-                                        : Colors.red,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    (p['is_active'] == true)
-                                        ? 'Active'
-                                        : 'Inactive',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: (p['is_active'] == true)
-                                          ? Colors.green
-                                          : Colors.red,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        // === LOCATION ===
-                        if (p['location'] != null &&
-                            p['location'].toString().isNotEmpty)
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on,
-                                size: 14,
-                                color: AppColors.textGrey,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  p['location'],
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textGrey,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                        const SizedBox(height: 12),
-                        const Divider(height: 1),
-                        const SizedBox(height: 12),
-
-                        // === TOMBOL AKSI: DITATA DALAM ROW YANG FLEKSIBEL ===
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment
-                              .spaceBetween, // ✅ Membagi ruang kiri & kanan
-                          children: [
-                            // 1. TOMBOL MANAGE ROOMS (TANPA Expanded, agar tidak mendorong tombol lain)
-                            ElevatedButton.icon(
-                              onPressed: () => context.go(
-                                '/admin/rooms?propertyId=${p['id']}&propertyName=${Uri.encodeComponent(p['name'])}',
-                              ),
-                              icon: const Icon(
-                                Icons.meeting_room,
-                                size: 18,
-                                color: Colors.white,
-                              ),
-                              label: const Text(
-                                'Manage Rooms',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.darkCharcoal,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ), // ✅ Tambah padding horizontal
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                elevation: 2,
-                              ),
-                            ),
-
-                            // 2. GROUP TOMBOL EDIT & DELETE
-                            Row(
-                              mainAxisSize: MainAxisSize
-                                  .min, // ✅ Hanya ambil ruang yang dibutuhkan
-                              children: [
-                                IconButton(
-                                  onPressed: () =>
-                                      _showPropertyDialog(property: p),
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.blue,
-                                  ),
-                                  tooltip: 'Edit',
-                                  constraints: const BoxConstraints(
-                                    minWidth: 40,
-                                    minHeight: 40,
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: () =>
-                                      _deleteProperty(p['id'], p['name']),
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                  tooltip: 'Delete',
-                                  constraints: const BoxConstraints(
-                                    minWidth: 40,
-                                    minHeight: 40,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showPropertyDialog(),
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Property'),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) {
+              return const Center(child: CircularProgressIndicator(color: AppColors.primaryGold));
+            }
+            if (_properties.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.business_outlined, size: 64, color: AppColors.textGrey),
+                    const SizedBox(height: 16),
+                    const Text('No properties found.', style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey)),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _showPropertyDialog(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add First Property'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGold,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return listContent; // Kembalikan ListView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF7F5F0), Color(0xFFEDE7DA), Color(0xFFF7F5F0)],
+              ),
+            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+                : _properties.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.business_outlined, size: 64, color: AppColors.textGrey),
+                            const SizedBox(height: 16),
+                            const Text('No properties found.', style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey)),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () => _showPropertyDialog(),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add First Property'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryGold,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24.0),
+                        child: Center(
+                          child: ConstrainedBox(
+                            // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                            constraints: const BoxConstraints(maxWidth: 900),
+                            child: listContent, // Gunakan ListView yang sama!
+                          ),
+                        ),
+                      ),
+          );
+        },
       ),
     );
   }

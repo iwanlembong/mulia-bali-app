@@ -789,156 +789,189 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       );
     }
 
+    // ✅ 1. Ekstrak CustomScrollView ke variabel agar TIDAK ADA duplikasi kode
+    final scrollView = CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 300,
+          pinned: true,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  _property!.coverImage ?? 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: AppColors.darkCharcoal),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _property!.name.toUpperCase(),
+                  style: const TextStyle(
+                    color: AppColors.primaryGold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _property!.tagline ?? '',
+                  style: const TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      size: 16,
+                      color: AppColors.textGrey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _property!.location ?? 'Bali, Indonesia',
+                      style: const TextStyle(
+                        color: AppColors.textGrey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Spacer(),
+                    ...List.generate(
+                      _property!.starRating,
+                      (index) => const Icon(
+                        Icons.star,
+                        size: 16,
+                        color: AppColors.primaryGold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 24),
+
+                const Text(
+                  'About',
+                  style: TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _property!.description ?? 'No description available.',
+                  style: const TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 15,
+                    color: AppColors.textGrey,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                const Text(
+                  'Available Rooms',
+                  style: TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_rooms.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text(
+                        'No rooms currently available.',
+                        style: TextStyle(color: AppColors.textGrey),
+                      ),
+                    ),
+                  )
+                else
+                  ..._rooms.map((room) => _buildRoomCard(room)).toList(),
+
+                const SizedBox(height: 32),
+
+                // ✅ Bagian Review
+                _buildReviewsSection(),
+
+                const SizedBox(height: 100), // Jarak aman untuk bottom UI
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    _property!.coverImage ?? 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        Container(color: AppColors.darkCharcoal),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
-                        ],
-                      ),
-                    ),
-                  ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return scrollView; // Kembalikan CustomScrollView apa adanya
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
                 ],
               ),
             ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => context.pop(),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _property!.name.toUpperCase(),
-                    style: const TextStyle(
-                      color: AppColors.primaryGold,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _property!.tagline ?? '',
-                    style: const TextStyle(
-                      fontFamily: 'Playfair Display',
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkCharcoal,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: AppColors.textGrey,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _property!.location ?? 'Bali, Indonesia',
-                        style: const TextStyle(
-                          color: AppColors.textGrey,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const Spacer(),
-                      ...List.generate(
-                        _property!.starRating,
-                        (index) => const Icon(
-                          Icons.star,
-                          size: 16,
-                          color: AppColors.primaryGold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 24),
-
-                  // ✅ Bagian About Property
-                  const Text(
-                    'About',
-                    style: TextStyle(
-                      fontFamily: 'Playfair Display',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkCharcoal,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _property!.description ?? 'No description available.',
-                    style: const TextStyle(
-                      fontFamily: 'Lato',
-                      fontSize: 15,
-                      color: AppColors.textGrey,
-                      height: 1.6,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // ✅ Bagian Available Rooms
-                  const Text(
-                    'Available Rooms',
-                    style: TextStyle(
-                      fontFamily: 'Playfair Display',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkCharcoal,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_rooms.isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: Text(
-                          'No rooms currently available.',
-                          style: TextStyle(color: AppColors.textGrey),
-                        ),
-                      ),
-                    )
-                  else
-                    ..._rooms.map((room) => _buildRoomCard(room)).toList(),
-
-                  const SizedBox(height: 32),
-
-                  // ✅ 3. TAMBAHKAN BAGIAN REVIEW DI SINI (Setelah daftar kamar)
-                  _buildReviewsSection(),
-
-                  const SizedBox(height: 100), // Jarak aman untuk bottom UI
-                ],
+            child: Center(
+              child: ConstrainedBox(
+                // ✅ 800px adalah standar ideal untuk halaman detail (bacaan nyaman, kartu proporsional)
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: scrollView, // Gunakan CustomScrollView yang sama persis!
               ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

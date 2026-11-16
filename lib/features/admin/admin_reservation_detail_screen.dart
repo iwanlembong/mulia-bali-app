@@ -340,6 +340,67 @@ class _AdminReservationDetailScreenState
     final res = _reservation!;
     final nights = res.checkOut.difference(res.checkIn).inDays;
 
+    // ✅ 1. Ekstrak seluruh konten Column ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final contentColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ✅ Guest & Stay Dossier (Premium)
+        _buildGuestStayDossier(res, nights),
+        const SizedBox(height: 24),
+
+        // ✅ Premium Payment Summary
+        _buildPremiumPaymentSummary(res, nights),
+        const SizedBox(height: 24),
+
+        if (res.specialRequests != null && res.specialRequests!.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Special Requests',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Lato',
+                    fontSize: 14,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  res.specialRequests!,
+                  style: const TextStyle(
+                    fontFamily: 'Lato',
+                    color: AppColors.textGrey,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 24),
+
+        // ✅ Premium Payment History Card
+        _buildPremiumPaymentHistoryCard(),
+        const SizedBox(height: 32),
+
+        // ✅ ACTION BUTTONS
+        _buildActionButtons(res),
+      ],
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -353,70 +414,48 @@ class _AdminReservationDetailScreenState
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ✅ BARU: Guest & Stay Dossier (Premium)
-            _buildGuestStayDossier(res, nights),
-            const SizedBox(height: 24),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
 
-            // ✅ BARU: Premium Payment Summary
-            _buildPremiumPaymentSummary(res, nights),
-            const SizedBox(height: 24),
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(
+                16,
+              ), // Menggunakan 16 agar konsisten dengan Booking Detail
+              child: contentColumn,
+            );
+          }
 
-            if (res.specialRequests != null &&
-                res.specialRequests!.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Special Requests',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Lato',
-                        fontSize: 14,
-                        color: AppColors.darkCharcoal,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      res.specialRequests!,
-                      style: const TextStyle(
-                        fontFamily: 'Lato',
-                        color: AppColors.textGrey,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24.0,
+                    horizontal: 16.0,
+                  ),
+                  child: contentColumn, // Gunakan Column yang sama persis!
                 ),
               ),
-            ],
-
-            const SizedBox(height: 24),
-
-            // ✅ BARU: Premium Payment History Card
-            _buildPremiumPaymentHistoryCard(),
-            const SizedBox(height: 32),
-
-            // ✅ ACTION BUTTONS (DIPERBAIKI)
-            _buildActionButtons(res),
-          ],
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -891,7 +930,7 @@ class _AdminReservationDetailScreenState
                 ),
               ),
             ],
-          ),          
+          ),
         ],
       ),
     );

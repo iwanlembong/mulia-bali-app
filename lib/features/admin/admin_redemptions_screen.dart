@@ -38,6 +38,70 @@ class _AdminRedemptionsScreenState extends State<AdminRedemptionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Ekstrak konten inti ke variabel agar tidak duplikat kode (DRY Principle)
+    final coreContent = Column(
+      children: [
+        // ✅ Filter Tabs
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              _buildFilterChip('All', 'all'),
+              const SizedBox(width: 8),
+              _buildFilterChip('Active', 'active'),
+              const SizedBox(width: 8),
+              _buildFilterChip('Used', 'used'),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+
+        // ✅ List Riwayat
+        Expanded(
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryGold,
+                  ),
+                )
+              : _redemptions.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.receipt_long,
+                        size: 64,
+                        color: AppColors.textGrey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No voucher redemption history yet',
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 14,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadRedemptions,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _redemptions.length,
+                    itemBuilder: (context, index) {
+                      final item = _redemptions[index];
+                      return _buildRedemptionCard(item);
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -51,67 +115,62 @@ class _AdminRedemptionsScreenState extends State<AdminRedemptionsScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          // ✅ Filter Tabs
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                _buildFilterChip('All', 'all'),
-                const SizedBox(width: 8),
-                _buildFilterChip('Active', 'active'),
-                const SizedBox(width: 8),
-                _buildFilterChip('Used', 'used'),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
 
-          // ✅ List Riwayat
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primaryGold,
-                    ),
-                  )
-                : _redemptions.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.receipt_long,
-                          size: 64,
-                          color: AppColors.textGrey,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No voucher redemption history yet',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 14,
-                            color: AppColors.textGrey,
-                          ),
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return coreContent;
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadRedemptions,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _redemptions.length,
-                      itemBuilder: (context, index) {
-                        final item = _redemptions[index];
-                        return _buildRedemptionCard(item);
-                      },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      // ✅ PENTING: Berikan tinggi eksplisit agar 'Expanded' di dalam Column berfungsi sempurna
+                      child: SizedBox(
+                        height:
+                            constraints.maxHeight -
+                            48, // 48 = padding all 24 * 2
+                        child: coreContent,
+                      ),
                     ),
                   ),
-          ),
-        ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

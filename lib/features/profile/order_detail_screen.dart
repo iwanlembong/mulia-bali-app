@@ -593,6 +593,595 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
     }
 
+    // ✅ 1. Ekstrak konten Column ke variabel agar TIDAK ADA duplikasi kode
+    final contentColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Order Info Card
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'ORDER NUMBER',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 10,
+                      color: AppColors.textGrey,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(_order!.status).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _order!.statusLabel,
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: _getStatusColor(_order!.status),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _order!.orderNumber,
+                style: const TextStyle(
+                  fontFamily: 'Playfair Display',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkCharcoal,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              _buildInfoRow(
+                Icons.calendar_today,
+                'Booking Date',
+                _order!.formattedDate,
+              ),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                Icons.access_time,
+                'Order Time',
+                DateFormat('HH:mm').format(_order!.orderDate),
+              ),
+              if (_order!.notes != null && _order!.notes!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.note, 'Notes', _order!.notes!),
+              ],
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // 2. Items Header & List
+        const Text(
+          'Booked Items',
+          style: TextStyle(
+            fontFamily: 'Playfair Display',
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkCharcoal,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_order!.items.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: Text(
+                'No items in this order.',
+                style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+              ),
+            ),
+          )
+        else
+          ..._order!.items
+              .map(
+                (item) => _buildItemCard(item, _reviewedItemIds, () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    builder: (context) => ReviewModal(
+                      itemType: item.itemType,
+                      itemId: item.itemId,
+                      onReviewSubmitted: () => _fetchOrder(),
+                    ),
+                  );
+                }),
+              )
+              .toList(),
+
+        const SizedBox(height: 24),
+
+        // 3. Total Summary
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.darkCharcoal,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Subtotal',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  Text(
+                    _currencyFormat.format(
+                      _order!.totalAmount +
+                          _order!.discountAmount +
+                          _order!.voucherDiscountAmount,
+                    ),
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 14,
+                      color: Colors.white,
+                      decoration:
+                          (_order!.discountAmount > 0 ||
+                              _order!.voucherDiscountAmount > 0)
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                    ),
+                  ),
+                ],
+              ),
+              if (_order!.discountAmount > 0) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Discount (${_order!.promoCode ?? 'Promo'})',
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 13,
+                        color: Colors.greenAccent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '- ${_currencyFormat.format(_order!.discountAmount)}',
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 14,
+                        color: Colors.greenAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (_order!.voucherDiscountAmount > 0) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Voucher Discount',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 13,
+                        color: Colors.purple,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '- ${_currencyFormat.format(_order!.voucherDiscountAmount)}',
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 14,
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const Divider(height: 24, color: Colors.white24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'TOTAL AMOUNT',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  Text(
+                    _currencyFormat.format(_order!.totalAmount),
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryGold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // 4. RIWAYAT PEMBAYARAN
+        if (!_isLoadingPayments && _payments.isNotEmpty) ...[
+          const Text(
+            'Payment History',
+            style: TextStyle(
+              fontFamily: 'Playfair Display',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkCharcoal,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ..._payments
+              .map(
+                (payment) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        payment.isVerified
+                            ? Icons.check_circle
+                            : (payment.isRejected
+                                  ? Icons.cancel
+                                  : Icons.hourglass_empty),
+                        color: payment.statusColor,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${payment.paymentType} • ${payment.formattedDate}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              payment.formattedAmount,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            if (payment.isRejected &&
+                                payment.rejectionReason != null)
+                              Text(
+                                'Note: ${payment.rejectionReason}',
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: payment.statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          payment.statusLabel,
+                          style: TextStyle(
+                            color: payment.statusColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+          const SizedBox(height: 24),
+        ],
+
+        // 5. TOMBOL AKSI PEMBAYARAN & BATAL
+        if (_order!.status == 'pending' || _order!.status == 'confirmed') ...[
+          if (_remainingBalance > 0)
+            if (_hasPendingPayment)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.hourglass_empty, color: Colors.orange, size: 24),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Payment Pending Verification',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                              fontSize: 14,
+                              fontFamily: 'Playfair Display',
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Your payment proof is being reviewed by our admin. Please wait for confirmation.',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 12,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _showPaymentModal,
+                  icon: const Icon(Icons.credit_card),
+                  label: Text(
+                    'PAY NOW (${_currencyFormat.format(_remainingBalance)})',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGold,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text(
+                    'FULLY PAID',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (!_isCancelling && _remainingBalance > 0 && !_hasPendingPayment)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _handleCancelOrder,
+                icon: const Icon(Icons.cancel_outlined, size: 18),
+                label: const Text(
+                  'CANCEL BOOKING',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+        ],
+
+        if (_isCancelling)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(color: AppColors.primaryGold),
+            ),
+          ),
+
+        const SizedBox(height: 24),
+
+        // 6. Download Invoice
+        if (_order!.status == 'confirmed' || _order!.status == 'completed') ...[
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Generating Invoice...'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                try {
+                  await PdfService.generateOrderInvoice(_order!);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Invoice berhasil dibuat!'),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to create invoice. Try again.'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.picture_as_pdf, size: 18),
+              label: const Text(
+                'DOWNLOAD INVOICE',
+                style: TextStyle(
+                  fontFamily: 'Lato',
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.darkCharcoal,
+                side: const BorderSide(color: AppColors.darkCharcoal),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+
+        // 7. Contact Support
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.primaryGold.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primaryGold.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.help_outline,
+                color: AppColors.primaryGold,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Need help with your booking?',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkCharcoal,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Contact our concierge team for assistance.',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 11,
+                        color: AppColors.textGrey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.email_outlined,
+                  color: AppColors.primaryGold,
+                ),
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Contact feature coming soon'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+      ],
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -607,592 +1196,48 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Order Info Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'ORDER NUMBER',
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 10,
-                          color: AppColors.textGrey,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(_order!.status)
-                              .withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _order!.statusLabel,
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _getStatusColor(_order!.status),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _order!.orderNumber,
-                    style: const TextStyle(
-                      fontFamily: 'Playfair Display',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkCharcoal,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(
-                    Icons.calendar_today,
-                    'Booking Date',
-                    _order!.formattedDate,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildInfoRow(
-                    Icons.access_time,
-                    'Order Time',
-                    DateFormat('HH:mm').format(_order!.orderDate),
-                  ),
-                  if (_order!.notes != null && _order!.notes!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _buildInfoRow(Icons.note, 'Notes', _order!.notes!),
-                  ],
-                ],
-              ),
-            ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
 
-            const SizedBox(height: 24),
-
-            // 2. Items Header & List
-            const Text(
-              'Booked Items',
-              style: TextStyle(
-                fontFamily: 'Playfair Display',
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.darkCharcoal,
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (_order!.items.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Text(
-                    'No items in this order.',
-                    style: TextStyle(
-                      fontFamily: 'Lato',
-                      color: AppColors.textGrey,
-                    ),
-                  ),
-                ),
-              )
-            else
-              ..._order!.items
-                  .map(
-                    (item) => _buildItemCard(item, _reviewedItemIds, () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(20),
-                          ),
-                        ),
-                        builder: (context) => ReviewModal(
-                          itemType: item.itemType,
-                          itemId: item.itemId,
-                          onReviewSubmitted: () => _fetchOrder(),
-                        ),
-                      );
-                    }),
-                  )
-                  .toList(),
-
-            const SizedBox(height: 24),
-
-            // 3. Total Summary
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.darkCharcoal,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Subtotal',
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 13,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      Text(
-                        _currencyFormat.format(
-                          _order!.totalAmount +
-                              _order!.discountAmount +
-                              _order!.voucherDiscountAmount,
-                        ),
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 14,
-                          color: Colors.white,
-                          decoration:
-                              (_order!.discountAmount > 0 ||
-                                  _order!.voucherDiscountAmount > 0)
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_order!.discountAmount > 0) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Discount (${_order!.promoCode ?? 'Promo'})',
-                          style: const TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 13,
-                            color: Colors.greenAccent,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '- ${_currencyFormat.format(_order!.discountAmount)}',
-                          style: const TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 14,
-                            color: Colors.greenAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (_order!.voucherDiscountAmount > 0) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Voucher Discount',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 13,
-                            color: Colors.purple,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '- ${_currencyFormat.format(_order!.voucherDiscountAmount)}',
-                          style: const TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 14,
-                            color: Colors.purple,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const Divider(height: 24, color: Colors.white24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'TOTAL AMOUNT',
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      Text(
-                        _currencyFormat.format(_order!.totalAmount),
-                        style: const TextStyle(
-                          fontFamily: 'Playfair Display',
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryGold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // ✅ 4. RIWAYAT PEMBAYARAN (BARU)
-            if (!_isLoadingPayments && _payments.isNotEmpty) ...[
-              const Text(
-                'Payment History',
-                style: TextStyle(
-                  fontFamily: 'Playfair Display',
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkCharcoal,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ..._payments
-                  .map(
-                    (payment) => Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            payment.isVerified
-                                ? Icons.check_circle
-                                : (payment.isRejected
-                                      ? Icons.cancel
-                                      : Icons.hourglass_empty),
-                            color: payment.statusColor,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${payment.paymentType} • ${payment.formattedDate}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  payment.formattedAmount,
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                if (payment.isRejected &&
-                                    payment.rejectionReason != null)
-                                  Text(
-                                    'Note: ${payment.rejectionReason}',
-                                    style: const TextStyle(
-                                      color: Colors.red,
-                                      fontSize: 11,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: payment.statusColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              payment.statusLabel,
-                              style: TextStyle(
-                                color: payment.statusColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-              const SizedBox(height: 24),
-            ],
-
-            // ✅ 5. TOMBOL AKSI PEMBAYARAN & BATAL (VERSI FLAT & ANTI-ERROR)
-            if (_order!.status == 'pending' || _order!.status == 'confirmed') ...[
-              
-              // Kondisi A: Masih ada sisa tagihan
-              if (_remainingBalance > 0)
-                
-                // Cek: Apakah sedang ada pembayaran yang pending?
-                if (_hasPendingPayment)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.shade200),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.hourglass_empty, color: Colors.orange, size: 24),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Payment Pending Verification',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange,
-                                  fontSize: 14,
-                                  fontFamily: 'Playfair Display',
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Your payment proof is being reviewed by our admin. Please wait for confirmation.',
-                                style: TextStyle(color: Colors.orange, fontSize: 12, fontFamily: 'Lato'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  // Belum ada pending, tampilkan tombol bayar
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _showPaymentModal,
-                      icon: const Icon(Icons.credit_card),
-                      label: Text('PAY NOW (${_currencyFormat.format(_remainingBalance)})'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryGold,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  )
-              else
-                // Kondisi B: Sudah lunas
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green),
-                      SizedBox(width: 8),
-                      Text('FULLY PAID', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-
-              const SizedBox(height: 12),
-
-              // Tombol Cancel (Hanya muncul jika belum lunas DAN tidak ada pembayaran pending)
-              if (!_isCancelling && _remainingBalance > 0 && !_hasPendingPayment)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _handleCancelOrder,
-                    icon: const Icon(Icons.cancel_outlined, size: 18),
-                    label: const Text('CANCEL BOOKING', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                ),
-            ],
-
-            if (_isCancelling)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(color: AppColors.primaryGold),
-                ),
-              ),
-
-            const SizedBox(height: 24),
-
-            // 6. Download Invoice (Jika Confirmed/Completed)
-            if (_order!.status == 'confirmed' ||
-                _order!.status == 'completed') ...[
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Generating Invoice...'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                    try {
-                      await PdfService.generateOrderInvoice(_order!);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Invoice berhasil dibuat!'),
-                            backgroundColor: Colors.green,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Failed to create invoice. Try again.',
-                            ),
-                            backgroundColor: Colors.red,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.picture_as_pdf, size: 18),
-                  label: const Text(
-                    'DOWNLOAD INVOICE',
-                    style: TextStyle(
-                      fontFamily: 'Lato',
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.darkCharcoal,
-                    side: const BorderSide(color: AppColors.darkCharcoal),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            // 7. Contact Support
-            Container(
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.primaryGold.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.primaryGold.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.help_outline,
-                    color: AppColors.primaryGold,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Need help with your booking?',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkCharcoal,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Contact our concierge team for assistance.',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 11,
-                            color: AppColors.textGrey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.email_outlined,
-                      color: AppColors.primaryGold,
-                    ),
-                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Contact feature coming soon'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    ),
-                  ),
+              child: contentColumn,
+            );
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-          ],
-        ),
+            child: SingleChildScrollView(
+              // ✅ PERBAIKAN: Tambahkan Center agar konten 800px terpusat horizontal
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 24.0,
+                      horizontal: 16.0,
+                    ),
+                    child: contentColumn,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

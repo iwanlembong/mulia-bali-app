@@ -956,15 +956,17 @@ class _AdminBookingDetailScreenState extends State<AdminBookingDetailScreen> {
               ),
             ),
             child: SingleChildScrollView(
-              child: ConstrainedBox(
-                // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
-                constraints: const BoxConstraints(maxWidth: 900),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 24.0,
-                    horizontal: 16.0,
+              child: Center(
+                // ✅ TAMBAHKAN INI
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 24.0,
+                      horizontal: 16.0,
+                    ),
+                    child: contentColumn,
                   ),
-                  child: contentColumn, // Gunakan Column yang sama persis!
                 ),
               ),
             ),

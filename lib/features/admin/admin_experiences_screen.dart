@@ -163,58 +163,134 @@ class _AdminExperiencesScreenState extends State<AdminExperiencesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'listContent' = ListView Anda yang SAMA PERSIS, tidak diubah
+    final listContent = ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _experiences.length,
+      itemBuilder: (context, index) {
+        final e = _experiences[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: AppColors.primaryGold.withOpacity(0.1),
+              child: Icon(_getIconData(e['icon_name']), color: AppColors.primaryGold),
+            ),
+            title: Text(
+              e['title'], 
+              style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Playfair Display'),
+            ),
+            subtitle: Text(
+              e['description'] ?? '', 
+              maxLines: 2, 
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue), 
+                  onPressed: () => _showDialog(exp: e),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red), 
+                  onPressed: () => _deleteExperience(e['id'], e['title']),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // ✅ Widget reusable untuk state kosong & loading (agar tidak duplikat kode)
+    final loadingWidget = const Center(
+      child: CircularProgressIndicator(color: AppColors.primaryGold),
+    );
+
+    final emptyWidget = Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.auto_awesome_outlined, size: 64, color: AppColors.textGrey),
+          const SizedBox(height: 16),
+          const Text(
+            'No experiences found.',
+            style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => _showDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add First Experience'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGold,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
-        title: const Text('Manage Experiences', style: TextStyle(fontFamily: 'Playfair Display', fontWeight: FontWeight.bold)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/admin/dashboard')),
+        title: const Text(
+          'Manage Experiences', 
+          style: TextStyle(fontFamily: 'Playfair Display', fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back), 
+          onPressed: () => context.go('/admin/dashboard'),
+        ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
-          : _experiences.isEmpty
-              ? Center(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add First Experience'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGold, foregroundColor: Colors.white),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _experiences.length,
-                  itemBuilder: (context, index) {
-                    final e = _experiences[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        // ✅ PERBAIKAN: Gunakan _getIconData agar ikon dinamis
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.primaryGold.withOpacity(0.1),
-                          child: Icon(_getIconData(e['icon_name']), color: AppColors.primaryGold),
-                        ),
-                        title: Text(e['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Playfair Display')),
-                        subtitle: Text(e['description'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showDialog(exp: e)),
-                            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteExperience(e['id'], e['title'])),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showDialog(),
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Experience'),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) return loadingWidget;
+            if (_experiences.isEmpty) return emptyWidget;
+            return listContent; // Kembalikan ListView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF7F5F0), Color(0xFFEDE7DA), Color(0xFFF7F5F0)],
+              ),
+            ),
+            child: _isLoading
+                ? loadingWidget
+                : _experiences.isEmpty
+                    ? emptyWidget
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24.0),
+                        child: Center(
+                          child: ConstrainedBox(
+                            // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                            constraints: const BoxConstraints(maxWidth: 900),
+                            child: listContent, // Gunakan ListView yang sama!
+                          ),
+                        ),
+                      ),
+          );
+        },
       ),
     );
   }

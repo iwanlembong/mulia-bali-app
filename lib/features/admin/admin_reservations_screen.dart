@@ -10,14 +10,15 @@ class AdminReservationsScreen extends StatefulWidget {
   const AdminReservationsScreen({super.key});
 
   @override
-  State<AdminReservationsScreen> createState() => _AdminReservationsScreenState();
+  State<AdminReservationsScreen> createState() =>
+      _AdminReservationsScreenState();
 }
 
 class _AdminReservationsScreenState extends State<AdminReservationsScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   bool _isLoading = true;
-  
+
   // ✅ Simpan semua data di memori untuk filtering & counting instan
   List<Reservation> _allReservations = [];
 
@@ -65,10 +66,12 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
   // ✅ DIPERBARUI: Ambil semua data, filtering dilakukan secara lokal
   Future<void> _fetchReservations() async {
     setState(() => _isLoading = true);
-    
+
     // Ambil semua reservasi tanpa filter agar kita bisa menghitung total per tab
-    final reservations = await ReservationService.getAllReservations(statusFilter: null);
-    
+    final reservations = await ReservationService.getAllReservations(
+      statusFilter: null,
+    );
+
     if (mounted) {
       setState(() {
         _allReservations = reservations;
@@ -80,18 +83,27 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
   // ✅ HELPER: Filter data secara lokal berdasarkan tab yang aktif
   List<Reservation> _getFilteredReservations(String tab) {
     if (tab == 'All') return _allReservations;
-    final statusFilter = tab.toLowerCase().replaceAll(' ', '_'); // 'Checked In' -> 'checked_in'
+    final statusFilter = tab.toLowerCase().replaceAll(
+      ' ',
+      '_',
+    ); // 'Checked In' -> 'checked_in'
     return _allReservations.where((res) => res.status == statusFilter).toList();
   }
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'pending': return Colors.orange.shade700;
-      case 'confirmed': return Colors.green.shade700;
-      case 'checked_in': return Colors.blue.shade700;
-      case 'cancelled': return Colors.red.shade700;
-      case 'completed': return Colors.teal.shade700;
-      default: return Colors.grey;
+      case 'pending':
+        return Colors.orange.shade700;
+      case 'confirmed':
+        return Colors.green.shade700;
+      case 'checked_in':
+        return Colors.blue.shade700;
+      case 'cancelled':
+        return Colors.red.shade700;
+      case 'completed':
+        return Colors.teal.shade700;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -104,6 +116,13 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Definisikan konten inti (TabBarView) HANYA SATU KALI agar kode tetap DRY
+    final coreContent = TabBarView(
+      controller: _tabController,
+      children: _tabs.map((tab) => _buildReservationsList(tab)).toList(),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -117,7 +136,6 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
           ),
         ),
         centerTitle: true,
-        // ✅ TAB BAR DENGAN BADGE COUNTER (Sama persis dengan Admin Bookings)
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -163,9 +181,42 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
           }).toList(),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: _tabs.map((tab) => _buildReservationsList(tab)).toList(),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return coreContent; // Kembalikan TabBarView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 24.0,
+              ), // Beri ruang napas di atas/bawah
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ Batasi lebar maksimal agar kartu dan tab tidak "melebar" aneh di desktop
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: coreContent, // Gunakan TabBarView yang sama persis!
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -229,14 +280,13 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push('/admin/reservation-detail/${res.id}').then((_) {
-          _fetchReservations(); // Auto-refresh saat kembali dari detail
-        }),
+        onTap: () =>
+            context.push('/admin/reservation-detail/${res.id}').then((_) {
+              _fetchReservations(); // Auto-refresh saat kembali dari detail
+            }),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -273,7 +323,10 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -326,16 +379,26 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
                     // Badge Promo (Hijau)
                     if (discountAmount > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.green.withOpacity(0.4), width: 0.5),
+                          border: Border.all(
+                            color: Colors.green.withOpacity(0.4),
+                            width: 0.5,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.local_offer, size: 12, color: Colors.green),
+                            const Icon(
+                              Icons.local_offer,
+                              size: 12,
+                              color: Colors.green,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Promo (${res.promoCode ?? 'N/A'}): -IDR ${_formatPrice(discountAmount)}',
@@ -349,20 +412,30 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen>
                           ],
                         ),
                       ),
-                    
+
                     // Badge Voucher (Ungu)
                     if (voucherDiscountAmount > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.purple.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.purple.withOpacity(0.4), width: 0.5),
+                          border: Border.all(
+                            color: Colors.purple.withOpacity(0.4),
+                            width: 0.5,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.card_giftcard, size: 12, color: Colors.purple),
+                            const Icon(
+                              Icons.card_giftcard,
+                              size: 12,
+                              color: Colors.purple,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Voucher: -IDR ${_formatPrice(voucherDiscountAmount)}',

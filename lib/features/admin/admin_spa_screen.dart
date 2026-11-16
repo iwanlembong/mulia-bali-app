@@ -262,8 +262,141 @@ class _AdminSpaScreenState extends State<AdminSpaScreen> {
     );
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'listContent' = ListView Anda yang SAMA PERSIS, tidak diubah
+    final listContent = ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _spaServices.length,
+      itemBuilder: (context, index) {
+        final s = _spaServices[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B7355).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.spa, color: Color(0xFF8B7355)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s['name'],
+                            style: const TextStyle(
+                              fontFamily: 'Playfair Display',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            s['category'] ?? 'Uncategorized',
+                            style: const TextStyle(
+                              fontStyle: FontStyle.italic,
+                              fontSize: 12,
+                              color: AppColors.textGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (s['is_active'] == true)
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 8,
+                            color: (s['is_active'] == true) ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            (s['is_active'] == true) ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: (s['is_active'] == true) ? Colors.green : Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 16, color: AppColors.textGrey),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${s['duration_minutes']} mins',
+                      style: const TextStyle(fontSize: 13, color: AppColors.textGrey),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.attach_money, size: 16, color: AppColors.primaryGold),
+                    const SizedBox(width: 6),
+                    Text(
+                      _currencyFormat.format(s['price'] ?? 0),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkCharcoal,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: () => _showServiceDialog(service: s),
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      tooltip: 'Edit',
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    ),
+                    IconButton(
+                      onPressed: () => _deleteService(s['id'], s['name']),
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      tooltip: 'Delete',
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -278,176 +411,97 @@ class _AdminSpaScreenState extends State<AdminSpaScreen> {
           onPressed: () => context.go('/admin/dashboard'),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
-          : _spaServices.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.spa_outlined, size: 64, color: AppColors.textGrey),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No spa services found.',
-                        style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () => _showServiceDialog(),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add First Service'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryGold,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _spaServices.length,
-                  itemBuilder: (context, index) {
-                    final s = _spaServices[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // === HEADER: Icon + Nama + Kategori ===
-                            Row(
-                              children: [
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF8B7355).withOpacity(0.1), // Warna earthy untuk spa
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.spa, color: Color(0xFF8B7355)),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        s['name'],
-                                        style: const TextStyle(
-                                          fontFamily: 'Playfair Display',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        s['category'] ?? 'Uncategorized',
-                                        style: const TextStyle(
-                                          fontStyle: FontStyle.italic,
-                                          fontSize: 12,
-                                          color: AppColors.textGrey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // Badge status
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: (s['is_active'] == true)
-                                        ? Colors.green.withOpacity(0.1)
-                                        : Colors.red.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.circle,
-                                        size: 8,
-                                        color: (s['is_active'] == true) ? Colors.green : Colors.red,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        (s['is_active'] == true) ? 'Active' : 'Inactive',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: (s['is_active'] == true) ? Colors.green : Colors.red,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            
-                            const SizedBox(height: 12),
-                            const Divider(height: 1),
-                            const SizedBox(height: 12),
-                            
-                            // === DETAIL: Durasi & Harga ===
-                            Row(
-                              children: [
-                                const Icon(Icons.access_time, size: 16, color: AppColors.textGrey),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${s['duration_minutes']} mins',
-                                  style: const TextStyle(fontSize: 13, color: AppColors.textGrey),
-                                ),
-                                const SizedBox(width: 16),
-                                const Icon(Icons.attach_money, size: 16, color: AppColors.primaryGold),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _currencyFormat.format(s['price'] ?? 0),
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.darkCharcoal,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            
-                            const SizedBox(height: 12),
-                            const Divider(height: 1),
-                            const SizedBox(height: 12),
-                            
-                            // === TOMBOL AKSI ===
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                IconButton(
-                                  onPressed: () => _showServiceDialog(service: s),
-                                  icon: const Icon(Icons.edit, color: Colors.blue),
-                                  tooltip: 'Edit',
-                                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                                ),
-                                IconButton(
-                                  onPressed: () => _deleteService(s['id'], s['name']),
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  tooltip: 'Delete',
-                                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showServiceDialog(),
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Spa Service'),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) {
+              return const Center(child: CircularProgressIndicator(color: AppColors.primaryGold));
+            }
+            if (_spaServices.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.spa_outlined, size: 64, color: AppColors.textGrey),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No spa services found.',
+                      style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _showServiceDialog(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add First Service'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGold,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return listContent; // Kembalikan ListView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF7F5F0), Color(0xFFEDE7DA), Color(0xFFF7F5F0)],
+              ),
+            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+                : _spaServices.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.spa_outlined, size: 64, color: AppColors.textGrey),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No spa services found.',
+                              style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () => _showServiceDialog(),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add First Service'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryGold,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24.0),
+                        child: Center(
+                          child: ConstrainedBox(
+                            // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                            constraints: const BoxConstraints(maxWidth: 900),
+                            child: listContent, // Gunakan ListView yang sama!
+                          ),
+                        ),
+                      ),
+          );
+        },
       ),
     );
   }

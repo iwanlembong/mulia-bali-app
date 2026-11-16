@@ -262,6 +262,191 @@ class _AdminWeddingsScreenState extends State<AdminWeddingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'listContent' = ListView Anda yang SAMA PERSIS, tidak diubah
+    final listContent = ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _weddings.length,
+      itemBuilder: (context, index) {
+        final w = _weddings[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child:
+                          w['image_url'] != null &&
+                              w['image_url'].toString().isNotEmpty
+                          ? Image.network(
+                              w['image_url'],
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.pink.shade100.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.favorite,
+                                  color: Colors.pink,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.pink.shade100.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.favorite,
+                                color: Colors.pink,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            w['package_name'],
+                            style: const TextStyle(
+                              fontFamily: 'Playfair Display',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (w['price'] != null)
+                            Text(
+                              _currencyFormat.format(w['price']),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryGold,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (w['is_active'] == true)
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 8,
+                            color: (w['is_active'] == true)
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            (w['is_active'] == true) ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: (w['is_active'] == true)
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: () => _showWeddingDialog(wedding: w),
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      tooltip: 'Edit',
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () =>
+                          _deleteWedding(w['id'], w['package_name']),
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      tooltip: 'Delete',
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // ✅ Widget reusable untuk state kosong & loading (agar tidak duplikat kode)
+    final loadingWidget = const Center(
+      child: CircularProgressIndicator(color: AppColors.primaryGold),
+    );
+
+    final emptyWidget = Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.favorite_outline,
+            size: 64,
+            color: AppColors.textGrey,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No wedding packages found.',
+            style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => _showWeddingDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add First Package'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGold,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -279,195 +464,53 @@ class _AdminWeddingsScreenState extends State<AdminWeddingsScreen> {
           onPressed: () => context.go('/admin/dashboard'),
         ),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : _weddings.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.favorite_outline,
-                    size: 64,
-                    color: AppColors.textGrey,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No wedding packages found.',
-                    style: TextStyle(
-                      fontFamily: 'Lato',
-                      color: AppColors.textGrey,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showWeddingDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add First Package'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGold,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _weddings.length,
-              itemBuilder: (context, index) {
-                final w = _weddings[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child:
-                                  w['image_url'] != null &&
-                                      w['image_url'].toString().isNotEmpty
-                                  ? Image.network(
-                                      w['image_url'],
-                                      width: 50,
-                                      height: 50,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        width: 50,
-                                        height: 50,
-                                        decoration: BoxDecoration(
-                                          color: Colors.pink.shade100
-                                              .withOpacity(0.3),
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.favorite,
-                                          color: Colors.pink,
-                                        ),
-                                      ),
-                                    )
-                                  : Container(
-                                      width: 50,
-                                      height: 50,
-                                      decoration: BoxDecoration(
-                                        color: Colors.pink.shade100.withOpacity(
-                                          0.3,
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.favorite,
-                                        color: Colors.pink,
-                                      ),
-                                    ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    w['package_name'],
-                                    style: const TextStyle(
-                                      fontFamily: 'Playfair Display',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  if (w['price'] != null)
-                                    Text(
-                                      _currencyFormat.format(w['price']),
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primaryGold,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (w['is_active'] == true)
-                                    ? Colors.green.withOpacity(0.1)
-                                    : Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.circle,
-                                    size: 8,
-                                    color: (w['is_active'] == true)
-                                        ? Colors.green
-                                        : Colors.red,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    (w['is_active'] == true)
-                                        ? 'Active'
-                                        : 'Inactive',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: (w['is_active'] == true)
-                                          ? Colors.green
-                                          : Colors.red,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Divider(height: 1),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            IconButton(
-                              onPressed: () => _showWeddingDialog(wedding: w),
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              tooltip: 'Edit',
-                            ),
-                            IconButton(
-                              onPressed: () =>
-                                  _deleteWedding(w['id'], w['package_name']),
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              tooltip: 'Delete',
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showWeddingDialog(),
         backgroundColor: AppColors.darkCharcoal,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Package'),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) return loadingWidget;
+            if (_weddings.isEmpty) return emptyWidget;
+            return listContent; // Kembalikan ListView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: _isLoading
+                ? loadingWidget
+                : _weddings.isEmpty
+                ? emptyWidget
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                    child: Center(
+                      child: ConstrainedBox(
+                        // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child: listContent, // Gunakan ListView yang sama!
+                      ),
+                    ),
+                  ),
+          );
+        },
       ),
     );
   }

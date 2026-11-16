@@ -45,14 +45,16 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
     );
   }
 
-  int get _baseTotalAmount => (widget.bookingData['totalAmount'] as num).toInt();
+  int get _baseTotalAmount =>
+      (widget.bookingData['totalAmount'] as num).toInt();
 
   int get _discountAmount {
     if (_appliedPromo == null) return 0;
     return _appliedPromo!.calculateDiscount(_baseTotalAmount);
   }
 
-  bool get _hasActiveDiscount => _appliedPromo != null || _selectedVoucher != null;
+  bool get _hasActiveDiscount =>
+      _appliedPromo != null || _selectedVoucher != null;
 
   int get _finalTotalAmount {
     int total = _baseTotalAmount;
@@ -74,7 +76,10 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
     });
 
     try {
-      final promo = await PromoService.validatePromoCode(code, _baseTotalAmount);
+      final promo = await PromoService.validatePromoCode(
+        code,
+        _baseTotalAmount,
+      );
 
       if (promo == null) {
         setState(() {
@@ -109,20 +114,27 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
 
     print(' [DEBUG VOUCHER] Total voucher user: ${allVouchers.length}');
     for (var v in allVouchers) {
-      print('   - ${v.rewardTitle} | ApplicableTo: ${v.applicableTo} | Status: ${v.status}');
+      print(
+        '   - ${v.rewardTitle} | ApplicableTo: ${v.applicableTo} | Status: ${v.status}',
+      );
     }
 
     final applicableVouchers = allVouchers.where((voucher) {
       return voucher.status == 'active' &&
-          (voucher.applicableTo == 'all' || voucher.applicableTo == 'accommodation');
+          (voucher.applicableTo == 'all' ||
+              voucher.applicableTo == 'accommodation');
     }).toList();
 
-    print('✅ [DEBUG VOUCHER] Voucher yang lolos filter: ${applicableVouchers.length}');
+    print(
+      '✅ [DEBUG VOUCHER] Voucher yang lolos filter: ${applicableVouchers.length}',
+    );
 
     if (applicableVouchers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('You do not have any vouchers that are valid for room bookings.'),
+          content: Text(
+            'You do not have any vouchers that are valid for room bookings.',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -164,7 +176,10 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
                   int estimatedDiscount = 0;
                   String displayValue = '';
                   if (voucher.rewardType == 'discount_percentage') {
-                    estimatedDiscount = (_baseTotalAmount * (int.tryParse(voucher.rewardValue) ?? 0)) ~/ 100;
+                    estimatedDiscount =
+                        (_baseTotalAmount *
+                            (int.tryParse(voucher.rewardValue) ?? 0)) ~/
+                        100;
                     displayValue = '${voucher.rewardValue}%';
                   } else if (voucher.rewardType == 'discount_fixed') {
                     estimatedDiscount = int.tryParse(voucher.rewardValue) ?? 0;
@@ -174,8 +189,13 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
                   }
 
                   return ListTile(
-                    title: Text(voucher.rewardTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Code: ${voucher.voucherCode} | Value: $displayValue'),
+                    title: Text(
+                      voucher.rewardTitle,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      'Code: ${voucher.voucherCode} | Value: $displayValue',
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       setState(() {
@@ -303,10 +323,7 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -314,8 +331,467 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final nights = widget.bookingData['checkOut'].difference(widget.bookingData['checkIn']).inDays;
+    final nights = widget.bookingData['checkOut']
+        .difference(widget.bookingData['checkIn'])
+        .inDays;
 
+    // ✅ 1. Ekstrak Form ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final formContent = Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // A. Ringkasan Booking
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.bookingData['roomName'],
+                  style: const TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildSummaryRow(
+                  'Check-in',
+                  DateFormat('dd MMM yyyy')
+                      .format(widget.bookingData['checkIn']),
+                ),
+                const SizedBox(height: 8),
+                _buildSummaryRow(
+                  'Check-out',
+                  DateFormat('dd MMM yyyy')
+                      .format(widget.bookingData['checkOut']),
+                ),
+                const SizedBox(height: 8),
+                _buildSummaryRow(
+                  'Duration',
+                  '$nights Night${nights > 1 ? 's' : ''}',
+                ),
+                const SizedBox(height: 8),
+                _buildSummaryRow(
+                  'Guests',
+                  '${widget.bookingData['adults']} Adults, ${widget.bookingData['children']} Children',
+                ),
+                const SizedBox(height: 8),
+                _buildSummaryRow(
+                  'Rooms',
+                  '${widget.bookingData['roomCount']} Room${widget.bookingData['roomCount'] > 1 ? 's' : ''}',
+                ),
+                const Divider(height: 24),
+                if (_hasActiveDiscount) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Subtotal',
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 14,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
+                      Text(
+                        'IDR ${_formatPrice(_baseTotalAmount)}',
+                        style: const TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 14,
+                          color: AppColors.textGrey,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total Amount',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkCharcoal,
+                      ),
+                    ),
+                    Text(
+                      'IDR ${_formatPrice(_finalTotalAmount)}',
+                      style: const TextStyle(
+                        fontFamily: 'Playfair Display',
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryGold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // B. Kartu Diskon & Voucher
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Discounts & Vouchers',
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 1. Input Promo Code
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _promoController,
+                        enabled: _selectedVoucher == null,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: InputDecoration(
+                          hintText: _selectedVoucher != null
+                              ? 'Voucher is currently active'
+                              : 'Enter code (e.g., MULIA10)',
+                          hintStyle: TextStyle(
+                            color: _selectedVoucher != null
+                                ? Colors.grey
+                                : AppColors.textGrey,
+                          ),
+                          filled: true,
+                          fillColor: _selectedVoucher != null
+                              ? Colors.grey.shade100
+                              : AppColors.offWhite,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          errorText: _promoError,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: (_selectedVoucher != null || _isCheckingPromo)
+                          ? null
+                          : _applyPromoCode,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _selectedVoucher != null
+                            ? Colors.grey
+                            : AppColors.darkCharcoal,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isCheckingPromo
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Apply',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+
+                // 2. Pilih Voucher
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: _appliedPromo != null ? null : _showVoucherSelector,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _appliedPromo != null
+                          ? Colors.grey.shade100
+                          : AppColors.offWhite,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _appliedPromo != null
+                            ? Colors.grey.shade300
+                            : AppColors.primaryGold.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _selectedVoucher != null
+                              ? 'Voucher: ${_selectedVoucher!.voucherCode}'
+                              : 'Select Loyalty Voucher',
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 13,
+                            color: _appliedPromo != null
+                                ? Colors.grey
+                                : AppColors.darkCharcoal,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          color: _appliedPromo != null
+                              ? Colors.grey
+                              : AppColors.primaryGold,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 3. Rincian Diskon Aktif
+                if (_appliedPromo != null || _selectedVoucher != null) ...[
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  if (_appliedPromo != null) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Discount (${_appliedPromo!.code})',
+                          style: const TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 12,
+                            color: Colors.green,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              '- IDR ${_formatPrice(_discountAmount)}',
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.green,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                setState(() {
+                                  _appliedPromo = null;
+                                  _promoController.clear();
+                                  _promoError = null;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (_selectedVoucher != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Voucher Benefit',
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 12,
+                            color: Colors.purple,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              _selectedVoucher!.rewardType ==
+                                          'discount_percentage' ||
+                                      _selectedVoucher!.rewardType ==
+                                          'discount_fixed'
+                                  ? '- IDR ${_formatPrice(_voucherDiscountAmount)}'
+                                  : 'Special Benefit',
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.purple,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedVoucher = null;
+                                  _voucherDiscountAmount = 0;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (_selectedVoucher!.rewardType != 'discount_percentage' &&
+                        _selectedVoucher!.rewardType != 'discount_fixed') ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 14,
+                              color: Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'This voucher provides additional benefits (upgrade or service). Total payment remains unchanged; benefits will be provided upon check-in.',
+                                style: TextStyle(
+                                  fontFamily: 'Lato',
+                                  fontSize: 10,
+                                  color: Colors.blue.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // C. Special Requests dengan Validasi
+          const Text(
+            'Special Requests (Optional)',
+            style: TextStyle(
+              fontFamily: 'Lato',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkCharcoal,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _notesController,
+            maxLines: 4,
+            maxLength: 200,
+            decoration: InputDecoration(
+              hintText: 'e.g., Late check-in, extra pillows, honeymoon arrangement...',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              counterText: '',
+            ),
+            validator: (value) {
+              if (value != null && value.length > 200) {
+                return 'Special requests cannot exceed 200 characters';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 32),
+
+          // D. Tombol Submit
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSubmitting ? null : _submitReservation,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.darkCharcoal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: _isSubmitting
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      'CONFIRM & BOOK',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -329,317 +805,69 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // A. Ringkasan Booking
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.bookingData['roomName'],
-                      style: const TextStyle(
-                        fontFamily: 'Playfair Display',
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkCharcoal,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSummaryRow('Check-in', DateFormat('dd MMM yyyy').format(widget.bookingData['checkIn'])),
-                    const SizedBox(height: 8),
-                    _buildSummaryRow('Check-out', DateFormat('dd MMM yyyy').format(widget.bookingData['checkOut'])),
-                    const SizedBox(height: 8),
-                    _buildSummaryRow('Duration', '$nights Night${nights > 1 ? 's' : ''}'),
-                    const SizedBox(height: 8),
-                    _buildSummaryRow('Guests', '${widget.bookingData['adults']} Adults, ${widget.bookingData['children']} Children'),
-                    const SizedBox(height: 8),
-                    _buildSummaryRow('Rooms', '${widget.bookingData['roomCount']} Room${widget.bookingData['roomCount'] > 1 ? 's' : ''}'),
-                    const Divider(height: 24),
-                    if (_hasActiveDiscount) ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Subtotal', style: TextStyle(fontFamily: 'Lato', fontSize: 14, color: AppColors.textGrey)),
-                          Text(
-                            'IDR ${_formatPrice(_baseTotalAmount)}',
-                            style: const TextStyle(fontFamily: 'Lato', fontSize: 14, color: AppColors.textGrey, decoration: TextDecoration.lineThrough),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total Amount', style: TextStyle(fontFamily: 'Lato', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
-                        Text(
-                          'IDR ${_formatPrice(_finalTotalAmount)}',
-                          style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryGold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: formContent,
+            );
+          }
+
+          // --- TABLET & DESKTOP: Centered Premium Form Card + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
               ),
-
-              const SizedBox(height: 24),
-
-              // B. Kartu Diskon & Voucher
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Discounts & Vouchers', // ✅ 3. UBAH DARI 'Diskon & Voucher'
-                      style: TextStyle(
-                        fontFamily: 'Lato',
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkCharcoal,
+            ),
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: ConstrainedBox(
+                    // ✅ 600px adalah lebar IDEAL untuk form (lebih nyaman dibaca daripada 900px)
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 48.0,
+                        horizontal: 24.0,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 1. Input Promo Code
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _promoController,
-                            enabled: _selectedVoucher == null,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: InputDecoration(
-                              hintText: _selectedVoucher != null
-                                  ? 'Voucher is currently active'
-                                  : 'Enter code (e.g., MULIA10)',
-                              hintStyle: TextStyle(
-                                color: _selectedVoucher != null ? Colors.grey : AppColors.textGrey,
-                              ),
-                              filled: true,
-                              fillColor: _selectedVoucher != null ? Colors.grey.shade100 : AppColors.offWhite,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                              errorText: _promoError,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: (_selectedVoucher != null || _isCheckingPromo) ? null : _applyPromoCode,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _selectedVoucher != null ? Colors.grey : AppColors.darkCharcoal,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: _isCheckingPromo
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Text('Apply', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-
-                    // 2. Pilih Voucher
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: _appliedPromo != null ? null : _showVoucherSelector,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: _appliedPromo != null ? Colors.grey.shade100 : AppColors.offWhite,
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: _appliedPromo != null ? Colors.grey.shade300 : AppColors.primaryGold.withOpacity(0.3),
+                            color: AppColors.primaryGold.withOpacity(0.18),
+                            width: 1,
                           ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _selectedVoucher != null ? 'Voucher: ${_selectedVoucher!.voucherCode}' : 'Select Loyalty Voucher',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 13,
-                                color: _appliedPromo != null ? Colors.grey : AppColors.darkCharcoal,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
                             ),
-                            Icon(Icons.chevron_right, color: _appliedPromo != null ? Colors.grey : AppColors.primaryGold),
                           ],
                         ),
+                        child: formContent, // Masukkan form ke dalam kartu
                       ),
                     ),
-
-                    // 3. Rincian Diskon Aktif
-                    if (_appliedPromo != null || _selectedVoucher != null) ...[
-                      const SizedBox(height: 16),
-                      const Divider(height: 1),
-                      const SizedBox(height: 8),
-                      if (_appliedPromo != null) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Discount (${_appliedPromo!.code})', style: const TextStyle(fontFamily: 'Lato', fontSize: 12, color: Colors.green)),
-                            Row(
-                              children: [
-                                Text('- IDR ${_formatPrice(_discountAmount)}', style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green)),
-                                IconButton(
-                                  icon: const Icon(Icons.close, size: 16, color: Colors.green),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () {
-                                    setState(() {
-                                      _appliedPromo = null;
-                                      _promoController.clear();
-                                      _promoError = null;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                      if (_selectedVoucher != null) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Voucher Benefit', style: TextStyle(fontFamily: 'Lato', fontSize: 12, color: Colors.purple)),
-                            Row(
-                              children: [
-                                Text(
-                                  _selectedVoucher!.rewardType == 'discount_percentage' || _selectedVoucher!.rewardType == 'discount_fixed'
-                                      ? '- IDR ${_formatPrice(_voucherDiscountAmount)}'
-                                      : 'Special Benefit',
-                                  style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.purple),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.close, size: 16, color: Colors.purple),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedVoucher = null;
-                                      _voucherDiscountAmount = 0;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        if (_selectedVoucher!.rewardType != 'discount_percentage' && _selectedVoucher!.rewardType != 'discount_fixed') ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.info_outline, size: 14, color: Colors.blue.shade700),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'This voucher provides additional benefits (upgrade or service). Total payment remains unchanged; benefits will be provided upon check-in.',
-                                    style: TextStyle(fontFamily: 'Lato', fontSize: 10, color: Colors.blue.shade800),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // C. Special Requests dengan Validasi
-              const Text(
-                'Special Requests (Optional)',
-                style: TextStyle(
-                  fontFamily: 'Lato',
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkCharcoal,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _notesController,
-                maxLines: 4,
-                maxLength: 200, // ✅ 4. BATASI KARAKTER
-                decoration: InputDecoration(
-                  hintText: 'e.g., Late check-in, extra pillows, honeymoon arrangement...',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  counterText: '', // Sembunyikan counter default
-                ),
-                // ✅ 5. VALIDASI SPECIAL REQUESTS
-                validator: (value) {
-                  if (value != null && value.length > 200) {
-                    return 'Special requests cannot exceed 200 characters';
-                  }
-                  return null; // Null = valid (karena ini opsional)
-                },
-              ),
-
-              const SizedBox(height: 32),
-
-              // D. Tombol Submit
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitReservation,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.darkCharcoal,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: _isSubmitting
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'CONFIRM & BOOK',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -648,8 +876,23 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontFamily: 'Lato', fontSize: 13, color: AppColors.textGrey)),
-        Text(value, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.darkCharcoal)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Lato',
+            fontSize: 13,
+            color: AppColors.textGrey,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontFamily: 'Lato',
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.darkCharcoal,
+          ),
+        ),
       ],
     );
   }

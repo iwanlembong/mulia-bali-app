@@ -32,8 +32,8 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
           .from('promotions')
           .select('*')
           // ✅ PERBAIKAN KRITIS: Ganti 'created_at' dengan 'code' agar urutan TIDAK BERUBAH
-          .order('code', ascending: true); 
-      
+          .order('code', ascending: true);
+
       if (mounted) {
         setState(() {
           _promotions = List<Map<String, dynamic>>.from(response);
@@ -45,7 +45,10 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load data: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed to load data: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -60,11 +63,13 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
           .eq('id', id);
 
       await _fetchPromotions();
-      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed to update status: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -206,7 +211,9 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
                     valueController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Discount code and value must be filled in!'),
+                      content: Text(
+                        'Discount code and value must be filled in!',
+                      ),
                       backgroundColor: Colors.orange,
                     ),
                   );
@@ -281,6 +288,107 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Variabel 'listContent' = ListView Anda yang SAMA PERSIS, tidak diubah
+    final listContent = ListView(
+      padding: const EdgeInsets.all(16),
+      children: _promotions.map((promo) {
+        final isPercentage = promo['discount_type'] == 'percentage';
+        final discountText = isPercentage
+            ? '${promo['discount_value']}%'
+            : _currencyFormat.format(promo['discount_value']);
+
+        // Pastikan ID adalah String untuk Key
+        final promoId = promo['id'].toString();
+
+        return Card(
+          key: ValueKey(promoId), // ✅ Key unik untuk setiap Card
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGold.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.local_offer,
+                    color: AppColors.primaryGold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        promo['code'],
+                        style: const TextStyle(
+                          fontFamily: 'Lato',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Discount: $discountText',
+                        style: const TextStyle(
+                          fontFamily: 'Lato',
+                          color: AppColors.darkCharcoal,
+                        ),
+                      ),
+                      Text(
+                        'Min: ${_currencyFormat.format(promo['min_purchase'] ?? 0)}',
+                        style: const TextStyle(
+                          fontFamily: 'Lato',
+                          fontSize: 12,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.edit,
+                    color: AppColors.primaryGold,
+                    size: 20,
+                  ),
+                  onPressed: () => _showPromoDialog(existingPromo: promo),
+                ),
+                // ✅ Switch dengan Key yang sangat spesifik
+                Switch(
+                  key: ValueKey('switch_$promoId'),
+                  value: promo['is_active'] == true,
+                  onChanged: (val) => _toggleActive(promoId, val),
+                  activeColor: AppColors.primaryGold,
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+
+    // ✅ Widget reusable untuk state kosong & loading (agar tidak duplikat kode)
+    final loadingWidget = const Center(
+      child: CircularProgressIndicator(color: AppColors.primaryGold),
+    );
+
+    final emptyWidget = const Center(
+      child: Text(
+        'No promo data available yet.',
+        style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+      ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -294,106 +402,6 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : _promotions.isEmpty
-          ? const Center(
-              child: Text(
-                'No promo data available yet.',
-                style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
-              ),
-            )
-          : ListView(
-              // ✅ GANTI ListView.builder menjadi ListView biasa
-              padding: const EdgeInsets.all(16),
-              children: _promotions.map((promo) {
-                // ✅ Gunakan .map() untuk membangun widget secara eksplisit
-                final isPercentage = promo['discount_type'] == 'percentage';
-                final discountText = isPercentage
-                    ? '${promo['discount_value']}%'
-                    : _currencyFormat.format(promo['discount_value']);
-
-                // Pastikan ID adalah String untuk Key
-                final promoId = promo['id'].toString();
-
-                return Card(
-                  key: ValueKey(promoId), // ✅ Key unik untuk setiap Card
-                  margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryGold.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.local_offer,
-                            color: AppColors.primaryGold,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                promo['code'],
-                                style: const TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Discount: $discountText',
-                                style: const TextStyle(
-                                  fontFamily: 'Lato',
-                                  color: AppColors.darkCharcoal,
-                                ),
-                              ),
-                              Text(
-                                'Min: ${_currencyFormat.format(promo['min_purchase'] ?? 0)}',
-                                style: const TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 12,
-                                  color: AppColors.textGrey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.edit,
-                            color: AppColors.primaryGold,
-                            size: 20,
-                          ),
-                          onPressed: () =>
-                              _showPromoDialog(existingPromo: promo),
-                        ),
-                        // ✅ Switch dengan Key yang sangat spesifik
-                        Switch(
-                          key: ValueKey('switch_$promoId'),
-                          value: promo['is_active'] == true,
-                          onChanged: (val) => _toggleActive(promoId, val),
-                          activeColor: AppColors.primaryGold,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(), // ✅ Konversi hasil map menjadi List
-            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showPromoDialog(),
         backgroundColor: AppColors.darkCharcoal,
@@ -403,6 +411,47 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
           'Add Promo',
           style: TextStyle(fontFamily: 'Lato', fontWeight: FontWeight.bold),
         ),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            if (_isLoading) return loadingWidget;
+            if (_promotions.isEmpty) return emptyWidget;
+            return listContent; // Kembalikan ListView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: _isLoading
+                ? loadingWidget
+                : _promotions.isEmpty
+                ? emptyWidget
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                    child: Center(
+                      child: ConstrainedBox(
+                        // ✅ Batasi lebar maksimal agar kartu tidak "melebar" aneh di desktop
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child: listContent, // Gunakan ListView yang sama!
+                      ),
+                    ),
+                  ),
+          );
+        },
       ),
     );
   }

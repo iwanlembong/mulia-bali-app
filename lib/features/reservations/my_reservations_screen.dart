@@ -74,7 +74,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen>
       statusFilter: 'all',
     );
 
- // ✅ Ambil ID item yang sudah direview
+    // ✅ Ambil ID item yang sudah direview
     final reviewedIds = await ReviewService.getUserReviewedItemIds();
 
     if (mounted) {
@@ -122,6 +122,13 @@ class _MyReservationsScreenState extends State<MyReservationsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Definisikan konten inti (TabBarView) HANYA SATU KALI agar kode tetap DRY
+    final coreContent = TabBarView(
+      controller: _tabController,
+      children: _tabs.map((tab) => _buildReservationsList(tab)).toList(),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -135,7 +142,6 @@ class _MyReservationsScreenState extends State<MyReservationsScreen>
           ),
         ),
         centerTitle: true,
-        // ✅ TAB BAR DENGAN BADGE COUNTER
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -181,9 +187,42 @@ class _MyReservationsScreenState extends State<MyReservationsScreen>
           }).toList(),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: _tabs.map((tab) => _buildReservationsList(tab)).toList(),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return coreContent; // Kembalikan TabBarView asli
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 24.0,
+              ), // Beri ruang napas di atas/bawah
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ Batasi lebar maksimal agar kartu dan tab tidak "melebar" aneh di desktop
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: coreContent, // Gunakan TabBarView yang sama persis!
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -611,25 +650,33 @@ class _MyReservationsScreenState extends State<MyReservationsScreen>
                           context: context,
                           isScrollControlled: true,
                           shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
                           ),
                           builder: (context) => ReviewModal(
                             itemType: 'property', // Tipe untuk kamar hotel
                             itemId: res.propertyId, // ✅ Menggunakan Property ID
-                            onReviewSubmitted: _fetchReservations, // Refresh otomatis
+                            onReviewSubmitted:
+                                _fetchReservations, // Refresh otomatis
                           ),
                         );
                       },
                       icon: const Icon(Icons.rate_review, size: 18),
                       label: const Text(
                         'WRITE A REVIEW',
-                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primaryGold,
                         side: const BorderSide(color: AppColors.primaryGold),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ),

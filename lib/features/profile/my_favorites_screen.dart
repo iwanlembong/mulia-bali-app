@@ -151,16 +151,18 @@ class _MyFavoritesScreenState extends State<MyFavoritesScreen>
     }
   }
 
-    Future<void> _removeFavorite(String itemType, String itemId) async {
+  Future<void> _removeFavorite(String itemType, String itemId) async {
     // 1. Optimistic UI update (Hapus dari list lokal agar UI langsung responsif)
     setState(() {
-      _allFavorites.removeWhere((f) => f['item_type'] == itemType && f['item_id'] == itemId);
+      _allFavorites.removeWhere(
+        (f) => f['item_type'] == itemType && f['item_id'] == itemId,
+      );
       _filterFavorites();
     });
 
     try {
       // 2. Kirim ke database
-      // Kita tidak perlu menyimpan return value. 
+      // Kita tidak perlu menyimpan return value.
       // Jika berhasil dihapus, toggleFavorite akan return false (tanpa error).
       // Jika GAGAL di database, toggleFavorite akan melempar error (throw).
       await FavoriteService.toggleFavorite(itemType, itemId);
@@ -180,7 +182,7 @@ class _MyFavoritesScreenState extends State<MyFavoritesScreen>
       print('❌ [UI] Gagal menghapus favorite: $e');
       if (mounted) {
         // Kembalikan data dari database (rollback UI)
-        _fetchFavorites(); 
+        _fetchFavorites();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to remove favorite'),
@@ -194,7 +196,7 @@ class _MyFavoritesScreenState extends State<MyFavoritesScreen>
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Logika Tombol Empty State yang Dinamis
+    // ✅ Logika Tombol Empty State yang Dinamis (TIDAK DIUBAH)
     String? buttonText;
     VoidCallback? onButtonPressed;
 
@@ -205,11 +207,44 @@ class _MyFavoritesScreenState extends State<MyFavoritesScreen>
       buttonText = 'Browse Spa';
       onButtonPressed = () => context.go('/spa');
     } else if (_selectedTab == 'Dining') {
-      // Sesuaikan dengan route dining Anda jika berbeda, atau biarkan '/'
-      buttonText = 'Browse Dining'; 
-      onButtonPressed = () => context.go('/'); 
+      buttonText = 'Browse Dining';
+      onButtonPressed = () => context.go('/');
     }
 
+    // ✅ 1. Ekstrak SELURUH logika body (loading/empty/list) ke satu variabel
+    //    agar TIDAK ADA duplikasi kode antara mobile & desktop (DRY Principle)
+    final bodyContent = _isLoading
+        ? ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: 3, // Tampilkan 3 shimmer cards
+            itemBuilder: (context, index) => const ShimmerCard(),
+          )
+        : _displayFavorites.isEmpty
+        ? EmptyStateWidget(
+            icon: Icons.favorite_border,
+            title: _selectedTab == 'All'
+                ? 'No Favorites Yet'
+                : 'No $_selectedTab Favorites',
+            subtitle: _selectedTab == 'All'
+                ? 'Start exploring our spa and dining experiences to save your favorites.'
+                : 'You haven\'t saved any $_selectedTab favorites yet.',
+            buttonText: buttonText,
+            onButtonPressed: onButtonPressed,
+          )
+        : RefreshIndicator(
+            onRefresh: _fetchFavorites,
+            color: AppColors.primaryGold,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _displayFavorites.length,
+              itemBuilder: (context, index) {
+                final fav = _displayFavorites[index];
+                return _buildFavoriteCard(fav);
+              },
+            ),
+          );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -231,93 +266,43 @@ class _MyFavoritesScreenState extends State<MyFavoritesScreen>
           tabs: _tabs.map((tab) => Tab(text: tab)).toList(),
         ),
       ),
-      body: _isLoading
-          ? ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: 3, // Tampilkan 3 shimmer cards
-              itemBuilder: (context, index) => const ShimmerCard(),
-            )
-          : _displayFavorites.isEmpty
-              ? EmptyStateWidget(
-                  icon: Icons.favorite_border,
-                  title: _selectedTab == 'All' ? 'No Favorites Yet' : 'No $_selectedTab Favorites',
-                  subtitle: _selectedTab == 'All' 
-                      ? 'Start exploring our spa and dining experiences to save your favorites.' 
-                      : 'You haven\'t saved any $_selectedTab favorites yet.',
-                  buttonText: buttonText,
-                  onButtonPressed: onButtonPressed,
-                )
-              : RefreshIndicator(
-                  onRefresh: _fetchFavorites,
-                  color: AppColors.primaryGold,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _displayFavorites.length,
-                    itemBuilder: (context, index) {
-                      final fav = _displayFavorites[index];
-                      return _buildFavoriteCard(fav);
-                    },
-                  ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return bodyContent; // Kembalikan logika body apa adanya
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained List + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ 800px karena kartu favorit bergambar besar (hero-style)
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: bodyContent, // Gunakan bodyContent yang sama!
                 ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
-
-  // Widget _buildEmptyState() {
-  //   return Center(
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(32),
-  //       child: Column(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: [
-  //           Icon(
-  //             Icons.favorite_border,
-  //             size: 80,
-  //             color: AppColors.textGrey.withOpacity(0.3),
-  //           ),
-  //           const SizedBox(height: 16),
-  //           const Text(
-  //             'No Favorites Yet',
-  //             style: TextStyle(
-  //               fontFamily: 'Playfair Display',
-  //               fontSize: 20,
-  //               fontWeight: FontWeight.bold,
-  //               color: AppColors.darkCharcoal,
-  //             ),
-  //           ),
-  //           const SizedBox(height: 8),
-  //           Text(
-  //             _selectedTab == 'All'
-  //                 ? 'Start exploring our spa and dining experiences to save your favorites.'
-  //                 : 'No $_selectedTab favorites yet.',
-  //             textAlign: TextAlign.center,
-  //             style: const TextStyle(
-  //               fontFamily: 'Lato',
-  //               fontSize: 14,
-  //               color: AppColors.textGrey,
-  //               height: 1.5,
-  //             ),
-  //           ),
-  //           if (_selectedTab == 'All') ...[
-  //             const SizedBox(height: 24),
-  //             ElevatedButton.icon(
-  //               onPressed: () => context.go('/'),
-  //               icon: const Icon(Icons.explore, size: 18),
-  //               label: const Text('EXPLORE EXPERIENCES'),
-  //               style: ElevatedButton.styleFrom(
-  //                 backgroundColor: AppColors.primaryGold,
-  //                 foregroundColor: Colors.white,
-  //                 padding: const EdgeInsets.symmetric(
-  //                   horizontal: 24,
-  //                   vertical: 12,
-  //                 ),
-  //               ),
-  //             ),
-  //           ],
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 
   Widget _buildFavoriteCard(Map<String, dynamic> fav) {
     final itemType = fav['item_type'] as String;

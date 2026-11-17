@@ -212,6 +212,187 @@ class _MyRewardsScreenState extends State<MyRewardsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Ekstrak seluruh konten body ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final bodyContent = _isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: AppColors.primaryGold),
+          )
+        : Column(
+            children: [
+              // 1. HEADER POIN & TIER
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                decoration: const BoxDecoration(color: AppColors.darkCharcoal),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Your Points',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontFamily: 'Lato',
+                            fontSize: 12,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          NumberFormat('#,###').format(_currentPoints),
+                          style: const TextStyle(
+                            color: AppColors.primaryGold,
+                            fontFamily: 'Playfair Display',
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: AppColors.primaryGold,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _tierIcon,
+                            color: AppColors.primaryGold,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _currentTier,
+                            style: const TextStyle(
+                              color: AppColors.primaryGold,
+                              fontFamily: 'Lato',
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 2. TAB BAR
+              Container(
+                color: AppColors.darkCharcoal,
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: AppColors.primaryGold,
+                  indicatorWeight: 2,
+                  labelColor: AppColors.primaryGold,
+                  unselectedLabelColor: Colors.white54,
+                  labelStyle: const TextStyle(
+                    fontFamily: 'Lato',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontFamily: 'Lato',
+                    fontWeight: FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                  tabs: const [
+                    Tab(text: 'Rewards Catalog'),
+                    Tab(text: 'My History'),
+                  ],
+                ),
+              ),
+
+              // 3. TAB BAR VIEW (Expanded agar mengisi sisa ruang)
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // TAB 1: Rewards Catalog
+                    RefreshIndicator(
+                      onRefresh: _loadData,
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          if (_rewards.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: Text(
+                                  'No rewards are available yet.',
+                                  style: TextStyle(
+                                    fontFamily: 'Lato',
+                                    color: AppColors.textGrey,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            ..._rewards.map(
+                              (reward) => _buildRewardCard(reward),
+                            ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+
+                    // TAB 2: My History (Vouchers)
+                    RefreshIndicator(
+                      onRefresh: _loadData,
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          if (_myVouchers.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.card_giftcard_outlined,
+                                      size: 48,
+                                      color: AppColors.textGrey,
+                                    ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'You haven\'t redeemed any rewards yet.',
+                                      style: TextStyle(
+                                        fontFamily: 'Lato',
+                                        color: AppColors.textGrey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            ..._myVouchers.map(
+                              (voucher) => _buildVoucherCard(voucher),
+                            ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -224,183 +405,63 @@ class _MyRewardsScreenState extends State<MyRewardsScreen>
             fontWeight: FontWeight.bold,
           ),
         ),
-        // ✅ TabBar DIHAPUS dari AppBar, dipindah ke body
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : Column(
-              children: [
-                // ✅ 1. HEADER POIN & TIER (Di bagian paling atas)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 16), // ✅ Padding dikurangi
-                  decoration: const BoxDecoration(
-                    color: AppColors.darkCharcoal,
-                    // ✅ HAPUS borderRadius agar tidak ada lekukan
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Your Points',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontFamily: 'Lato',
-                              fontSize: 12,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            NumberFormat('#,###').format(_currentPoints),
-                            style: const TextStyle(
-                              color: AppColors.primaryGold,
-                              fontFamily: 'Playfair Display',
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.primaryGold, width: 1.5),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _tierIcon,
-                              color: AppColors.primaryGold,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _currentTier,
-                              style: const TextStyle(
-                                color: AppColors.primaryGold,
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.5,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
 
-                // ✅ 2. TAB BAR (Di bawah header poin)
-                Container(
-                  color: AppColors.darkCharcoal,
-                  child: TabBar(
-                    controller: _tabController,
-                    indicatorColor: AppColors.primaryGold,
-                    indicatorWeight: 2,
-                    labelColor: AppColors.primaryGold,
-                    unselectedLabelColor: Colors.white54,
-                    labelStyle: const TextStyle(
-                      fontFamily: 'Lato',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      letterSpacing: 0.5,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontFamily: 'Lato',
-                      fontWeight: FontWeight.normal,
-                      fontSize: 12,
-                    ),
-                    tabs: const [
-                      Tab(text: 'Rewards Catalog'),
-                      Tab(text: 'My History'),
-                    ],
-                  ),
-                ),
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return bodyContent; // Kembalikan kolom asli apa adanya
+          }
 
-                // ✅ 3. TAB BAR VIEW (Konten di bawah tab)
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      // TAB 1: Rewards Catalog
-                      RefreshIndicator(
-                        onRefresh: _loadData,
-                        child: ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            if (_rewards.isEmpty)
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(32),
-                                  child: Text(
-                                    'No rewards are available yet.',
-                                    style: TextStyle(
-                                      fontFamily: 'Lato',
-                                      color: AppColors.textGrey,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            else
-                              ..._rewards.map(
-                                (reward) => _buildRewardCard(reward),
-                              ),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
-
-                      // TAB 2: My History (Vouchers)
-                      RefreshIndicator(
-                        onRefresh: _loadData,
-                        child: ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            if (_myVouchers.isEmpty)
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(32),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.card_giftcard_outlined,
-                                        size: 48,
-                                        color: AppColors.textGrey,
-                                      ),
-                                      SizedBox(height: 12),
-                                      Text(
-                                        'You haven\'t redeemed any rewards yet.',
-                                        style: TextStyle(
-                                          fontFamily: 'Lato',
-                                          color: AppColors.textGrey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            else
-                              ..._myVouchers.map(
-                                (voucher) => _buildVoucherCard(voucher),
-                              ),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          // --- TABLET & DESKTOP: Centered Premium Card + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
             ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0), // Beri jarak dari edge layar
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ Batasi lebar DAN tinggi agar 'Expanded' di dalam bodyContent bekerja sempurna
+                  constraints: BoxConstraints(
+                    maxWidth: 800,
+                    maxHeight:
+                        constraints.maxHeight - 48, // 48 = padding all 24 * 2
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    // ✅ ClipRRect memastikan header gelap juga ikut membulat di sudut atas
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: bodyContent, // Gunakan konten yang sama persis!
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 

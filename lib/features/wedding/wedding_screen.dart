@@ -16,7 +16,7 @@ class WeddingScreen extends StatefulWidget {
 class _WeddingScreenState extends State<WeddingScreen> {
   bool _isLoading = true;
   List<WeddingModel> _packages = [];
-  
+
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'IDR ',
@@ -47,6 +47,57 @@ class _WeddingScreenState extends State<WeddingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Ekstrak konten body ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final bodyContent = RefreshIndicator(
+      onRefresh: _fetchPackages,
+      color: AppColors.primaryGold,
+      child: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primaryGold),
+            )
+          : _packages.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.favorite_outline,
+                    size: 64,
+                    color: AppColors.textGrey,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No wedding packages available at the moment.',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 16,
+                      color: AppColors.textGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _fetchPackages,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGold,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _packages.length,
+              itemBuilder: (context, index) {
+                final package = _packages[index];
+                return _buildPackageCard(package);
+              },
+            ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -61,53 +112,40 @@ class _WeddingScreenState extends State<WeddingScreen> {
         ),
         centerTitle: true,
       ),
-      body: RefreshIndicator(
-        onRefresh: _fetchPackages,
-        color: AppColors.primaryGold,
-        child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.primaryGold),
-              )
-            : _packages.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.favorite_outline,
-                          size: 64,
-                          color: AppColors.textGrey,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No wedding packages available at the moment.',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 16,
-                            color: AppColors.textGrey,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _fetchPackages,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Refresh'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryGold,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _packages.length,
-                    itemBuilder: (context, index) {
-                      final package = _packages[index];
-                      return _buildPackageCard(package);
-                    },
-                  ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return bodyContent; // Kembalikan konten asli apa adanya
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ 800px = lebar ideal untuk kartu wedding package (gambar + list includes)
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: bodyContent, // Gunakan konten yang sama persis!
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -123,7 +161,9 @@ class _WeddingScreenState extends State<WeddingScreen> {
           // 1. Gambar
           if (package.imageUrl != null && package.imageUrl!.isNotEmpty)
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               child: Image.network(
                 package.imageUrl!,
                 height: 200,
@@ -133,7 +173,11 @@ class _WeddingScreenState extends State<WeddingScreen> {
                   height: 200,
                   color: AppColors.offWhite,
                   child: const Center(
-                    child: Icon(Icons.image_not_supported, size: 48, color: AppColors.textGrey),
+                    child: Icon(
+                      Icons.image_not_supported,
+                      size: 48,
+                      color: AppColors.textGrey,
+                    ),
                   ),
                 ),
               ),
@@ -155,11 +199,12 @@ class _WeddingScreenState extends State<WeddingScreen> {
                     color: AppColors.darkCharcoal,
                   ),
                 ),
-                
+
                 const SizedBox(height: 8),
 
                 // Deskripsi
-                if (package.description != null && package.description!.isNotEmpty)
+                if (package.description != null &&
+                    package.description!.isNotEmpty)
                   Text(
                     package.description!,
                     style: const TextStyle(
@@ -169,7 +214,7 @@ class _WeddingScreenState extends State<WeddingScreen> {
                       height: 1.5,
                     ),
                   ),
-                
+
                 const SizedBox(height: 16),
 
                 // Includes (apa saja yang termasuk)
@@ -185,30 +230,32 @@ class _WeddingScreenState extends State<WeddingScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...package.includes.map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.check_circle,
-                          size: 16,
-                          color: Colors.pink,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            item,
-                            style: const TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              color: AppColors.textGrey,
+                  ...package.includes.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: Colors.pink,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              item,
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 13,
+                                color: AppColors.textGrey,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  )),
+                  ),
                   const SizedBox(height: 16),
                 ],
 

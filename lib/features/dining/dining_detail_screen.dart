@@ -457,226 +457,257 @@ class _DiningDetailScreenState extends State<DiningDetailScreen> {
 
     final groupedMenu = _groupMenuByCategory();
 
-    return Scaffold(
-      backgroundColor: AppColors.offWhite,
-      body: CustomScrollView(
-        slivers: [
-          // 1. HERO IMAGE
-          SliverAppBar(
-            expandedHeight: 280,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_restaurant!['cover_image'] != null &&
-                      _restaurant!['cover_image'].toString().isNotEmpty)
-                    Image.network(
-                      _restaurant!['cover_image'],
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Container(color: AppColors.darkCharcoal),
-                    )
-                  else
-                    Container(
-                      color: AppColors.darkCharcoal,
-                      child: const Center(
-                        child: Icon(
-                          Icons.restaurant,
-                          size: 64,
-                          color: Colors.white24,
-                        ),
-                      ),
-                    ),
+    // ✅ 1. Ekstrak CustomScrollView ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final scrollView = CustomScrollView(
+      slivers: [
+        // 1. HERO IMAGE
+        SliverAppBar(
+          expandedHeight: 280,
+          pinned: true,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_restaurant!['cover_image'] != null &&
+                    _restaurant!['cover_image'].toString().isNotEmpty)
+                  Image.network(
+                    _restaurant!['cover_image'],
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: AppColors.darkCharcoal),
+                  )
+                else
                   Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
-                        ],
+                    color: AppColors.darkCharcoal,
+                    child: const Center(
+                      child: Icon(
+                        Icons.restaurant,
+                        size: 64,
+                        color: Colors.white24,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => context.pop(),
-            ),
-
-            // ✅ 5. PERBAIKAN UTAMA: Actions untuk Favorite Restoran
-            actions: [
-              if (_isCheckingFavorite)
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
                     ),
                   ),
-                )
-              else
-                IconButton(
-                  icon: Icon(
-                    _isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: _isFavorite
-                        ? Colors.red
-                        : Colors.white, // ❤️ Merah jika favorite
-                  ),
-                  onPressed: _toggleFavorite,
                 ),
-            ],
+              ],
+            ),
           ),
-
-          // 2. CONTENT
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_restaurant!['cuisine_type'] != null &&
-                      _restaurant!['cuisine_type'].toString().isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6B8E23).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _restaurant!['cuisine_type'],
-                        style: const TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF6B8E23),
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-
-                  const SizedBox(height: 12),
-
-                  Text(
-                    _restaurant!['name'],
-                    style: const TextStyle(
-                      fontFamily: 'Playfair Display',
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkCharcoal,
-                    ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+          actions: [
+            if (_isCheckingFavorite)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
                   ),
+                ),
+              )
+            else
+              IconButton(
+                icon: Icon(
+                  _isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: _isFavorite ? Colors.red : Colors.white,
+                ),
+                onPressed: _toggleFavorite,
+              ),
+          ],
+        ),
 
-                  const SizedBox(height: 12),
-
-                  if (_restaurant!['operating_hours'] != null &&
-                      _restaurant!['operating_hours'].toString().isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6B8E23).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time,
-                            size: 18,
-                            color: Color(0xFF6B8E23),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Open: ${_restaurant!['operating_hours']}',
-                            style: const TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF6B8E23),
-                            ),
-                          ),
-                        ],
-                      ),
+        // 2. CONTENT
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_restaurant!['cuisine_type'] != null &&
+                    _restaurant!['cuisine_type'].toString().isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
                     ),
-
-                  const SizedBox(height: 20),
-
-                  if (_restaurant!['description'] != null &&
-                      _restaurant!['description'].toString().isNotEmpty) ...[
-                    const Text(
-                      'About',
-                      style: TextStyle(
-                        fontFamily: 'Playfair Display',
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkCharcoal,
-                      ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B8E23).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _restaurant!['description'],
+                    child: Text(
+                      _restaurant!['cuisine_type'],
                       style: const TextStyle(
                         fontFamily: 'Lato',
-                        fontSize: 14,
-                        color: AppColors.textGrey,
-                        height: 1.6,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6B8E23),
+                        letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                  ],
+                  ),
 
-                  const Divider(color: Color(0xFF6B8E23), thickness: 1),
-                  const SizedBox(height: 24),
+                const SizedBox(height: 12),
 
+                Text(
+                  _restaurant!['name'],
+                  style: const TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                if (_restaurant!['operating_hours'] != null &&
+                    _restaurant!['operating_hours'].toString().isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B8E23).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.access_time,
+                          size: 18,
+                          color: Color(0xFF6B8E23),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Open: ${_restaurant!['operating_hours']}',
+                          style: const TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF6B8E23),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 20),
+
+                if (_restaurant!['description'] != null &&
+                    _restaurant!['description'].toString().isNotEmpty) ...[
                   const Text(
-                    'Our Menu',
+                    'About',
                     style: TextStyle(
                       fontFamily: 'Playfair Display',
-                      fontSize: 22,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppColors.darkCharcoal,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  Text(
+                    _restaurant!['description'],
+                    style: const TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 14,
+                      color: AppColors.textGrey,
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
 
-                  if (groupedMenu.isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'Menu is currently being updated.',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            color: AppColors.textGrey,
-                          ),
+                const Divider(color: Color(0xFF6B8E23), thickness: 1),
+                const SizedBox(height: 24),
+
+                const Text(
+                  'Our Menu',
+                  style: TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                if (groupedMenu.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text(
+                        'Menu is currently being updated.',
+                        style: TextStyle(
+                          fontFamily: 'Lato',
+                          color: AppColors.textGrey,
                         ),
                       ),
-                    )
-                  else
-                    ...groupedMenu.entries.map(
-                      (entry) => _buildCategorySection(entry.key, entry.value),
                     ),
+                  )
+                else
+                  ...groupedMenu.entries.map(
+                    (entry) => _buildCategorySection(entry.key, entry.value),
+                  ),
 
-                  const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-                  // ✅ TAMBAHKAN BAGIAN REVIEW DI SINI
-                  _buildReviewsSection(),
+                // ✅ BAGIAN REVIEW
+                _buildReviewsSection(),
 
-                  const SizedBox(height: 100),
+                const SizedBox(height: 100),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
+    return Scaffold(
+      backgroundColor: AppColors.offWhite,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return scrollView; // Kembalikan CustomScrollView apa adanya
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
                 ],
               ),
             ),
-          ),
-        ],
+            child: Center(
+              child: ConstrainedBox(
+                // ✅ 800px adalah lebar ideal untuk detail restoran (gambar hero + list menu proporsional)
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: scrollView, // Gunakan CustomScrollView yang sama persis!
+              ),
+            ),
+          );
+        },
       ),
     );
   }

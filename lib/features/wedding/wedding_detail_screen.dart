@@ -549,7 +549,7 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
     }
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
@@ -566,154 +566,215 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.offWhite,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_package!.imageUrl != null && _package!.imageUrl!.isNotEmpty)
-                    Image.network(
-                      _package!.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: AppColors.darkCharcoal),
-                    )
-                  else
-                    Container(
-                      color: AppColors.darkCharcoal,
-                      child: const Center(child: Icon(Icons.favorite, size: 64, color: Colors.white24)),
-                    ),
+    // ✅ 1. Ekstrak CustomScrollView (tanpa bottomNavigationBar) ke variabel
+    final scrollView = CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 300,
+          pinned: true,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_package!.imageUrl != null && _package!.imageUrl!.isNotEmpty)
+                  Image.network(
+                    _package!.imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(color: AppColors.darkCharcoal),
+                  )
+                else
                   Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                      ),
+                    color: AppColors.darkCharcoal,
+                    child: const Center(child: Icon(Icons.favorite, size: 64, color: Colors.white24)),
+                  ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                     ),
                   ),
-                ],
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => context.pop(),
+                ),
+              ],
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _package!.packageName,
-                    style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _package!.packageName,
+                  style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                ),
+                const SizedBox(height: 16),
+                if (_package!.price != null)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.pink.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.pink.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.attach_money, size: 24, color: Colors.pink),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Starting From', style: TextStyle(fontFamily: 'Lato', fontSize: 11, color: AppColors.textGrey)),
+                            Text(
+                              _currencyFormat.format(_package!.price),
+                              style: const TextStyle(fontFamily: 'Lato', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.pink),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  if (_package!.price != null)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.pink.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.pink.shade200),
-                      ),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 24),
+                const Text('About This Package', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Text(
+                  _package!.description ?? 'No description available.',
+                  style: const TextStyle(fontFamily: 'Lato', fontSize: 15, color: AppColors.textGrey, height: 1.6),
+                ),
+                const SizedBox(height: 24),
+                if (_package!.includes.isNotEmpty) ...[
+                  const Text('Package Includes', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  ..._package!.includes.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.attach_money, size: 24, color: Colors.pink),
-                          const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Starting From', style: TextStyle(fontFamily: 'Lato', fontSize: 11, color: AppColors.textGrey)),
-                              Text(
-                                _currencyFormat.format(_package!.price),
-                                style: const TextStyle(fontFamily: 'Lato', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.pink),
-                              ),
-                            ],
+                          const Icon(Icons.check_circle, size: 18, color: Colors.pink),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(item, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, color: AppColors.darkCharcoal)),
                           ),
                         ],
                       ),
                     ),
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 24),
-                  const Text('About This Package', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Text(
-                    _package!.description ?? 'No description available.',
-                    style: const TextStyle(fontFamily: 'Lato', fontSize: 15, color: AppColors.textGrey, height: 1.6),
                   ),
-                  const SizedBox(height: 24),
-                  if (_package!.includes.isNotEmpty) ...[
-                    const Text('Package Includes', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    ..._package!.includes.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.check_circle, size: 18, color: Colors.pink),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(item, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, color: AppColors.darkCharcoal)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-                  _buildReviewsSection(),
-                  const SizedBox(height: 100),
                 ],
-              ),
+                const SizedBox(height: 32),
+                _buildReviewsSection(),
+                const SizedBox(height: 40), // Disesuaikan agar ada ruang sebelum tombol di desktop
+              ],
             ),
+          ),
+        ),
+      ],
+    );
+
+    // ✅ 2. Ekstrak Checkout Bar (sebelumnya bottomNavigationBar) ke variabel
+    final checkoutBar = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
           ),
         ],
       ),
-      
-      // ✅ TOMBOL BAWAH YANG SUDAH DIBERSIHKAN DARI KATA "CART"
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: ElevatedButton.icon(
-            onPressed: _showWeddingBookingModal,
-            icon: const Icon(Icons.calendar_month, size: 18), // Ikon Kalender
-            label: const Text(
-              'CHECK AVAILABILITY & INQUIRE', // Teks yang sudah diperbaiki
-              style: TextStyle(
-                fontFamily: 'Lato',
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.pink.shade600,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: SafeArea(
+        child: ElevatedButton.icon(
+          onPressed: _showWeddingBookingModal,
+          icon: const Icon(Icons.calendar_month, size: 18),
+          label: const Text(
+            'CHECK AVAILABILITY & INQUIRE',
+            style: TextStyle(
+              fontFamily: 'Lato',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
             ),
           ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.pink.shade600,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
         ),
+      ),
+    );
+
+    // ✅ 3. Gabungkan menjadi Column (Expanded + Checkout Bar)
+    // Di mobile: berperilaku IDENTIK dengan Scaffold + bottomNavigationBar
+    // Di desktop: checkout bar ikut ter-center dalam kartu premium
+    final mainContent = Column(
+      children: [
+        Expanded(child: scrollView),
+        checkoutBar,
+      ],
+    );
+
+    // ✅ 4. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
+    return Scaffold(
+      backgroundColor: AppColors.offWhite,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return mainContent;
+          }
+
+          // --- TABLET & DESKTOP: Centered Premium Card + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF7F5F0), Color(0xFFEDE7DA), Color(0xFFF7F5F0)],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ 800px = lebar ideal untuk detail wedding + inquiry bar
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    // ✅ ClipRRect memastikan SliverAppBar & inquiry bar ikut membulat rapi
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: mainContent,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

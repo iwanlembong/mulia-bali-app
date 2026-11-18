@@ -42,6 +42,57 @@ class _OffersScreenState extends State<OffersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Ekstrak konten body ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final bodyContent = RefreshIndicator(
+      onRefresh: _fetchOffers,
+      color: AppColors.primaryGold,
+      child: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primaryGold),
+            )
+          : _offers.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.local_offer_outlined,
+                    size: 64,
+                    color: AppColors.textGrey,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No special offers available at the moment.',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 16,
+                      color: AppColors.textGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _fetchOffers,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGold,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _offers.length,
+              itemBuilder: (context, index) {
+                final offer = _offers[index];
+                return _buildOfferCard(offer);
+              },
+            ),
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -56,58 +107,46 @@ class _OffersScreenState extends State<OffersScreen> {
         ),
         centerTitle: true,
       ),
-      body: RefreshIndicator(
-        onRefresh: _fetchOffers,
-        color: AppColors.primaryGold,
-        child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.primaryGold),
-              )
-            : _offers.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.local_offer_outlined,
-                      size: 64,
-                      color: AppColors.textGrey,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'No special offers available at the moment.',
-                      style: TextStyle(
-                        fontFamily: 'Lato',
-                        fontSize: 16,
-                        color: AppColors.textGrey,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _fetchOffers,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryGold,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _offers.length,
-                itemBuilder: (context, index) {
-                  final offer = _offers[index];
-                  return _buildOfferCard(offer);
-                },
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return bodyContent; // Kembalikan konten asli apa adanya
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
               ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 24.0,
+              ), // Beri ruang napas di atas/bawah
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ 800px adalah lebar ideal untuk kartu offer agar tidak terlalu lebar
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: bodyContent, // Gunakan konten yang sama persis!
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
- 
   // ✅ Widget Kartu Offer yang Lebih Detail (Karena ruang vertikal lebih luas)
   Widget _buildOfferCard(SpecialOfferModel offer) {
     return Card(
@@ -261,7 +300,10 @@ class _OffersScreenState extends State<OffersScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => OfferDetailDialog.show(context, offer), // ✅ Buka dialog detail
+                    onPressed: () => OfferDetailDialog.show(
+                      context,
+                      offer,
+                    ), // ✅ Buka dialog detail
                     icon: const Icon(Icons.visibility_outlined, size: 18),
                     label: const Text(
                       'VIEW DETAILS & BOOK',

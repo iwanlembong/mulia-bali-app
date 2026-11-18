@@ -326,14 +326,20 @@ class _CartScreenState extends State<CartScreen> {
               const SizedBox(height: 4),
               Text(
                 'Discount (${_appliedPromo!.code}): - ${_currencyFormat.format(_appliedPromo!.calculateDiscount(_cart!.totalAmount))}',
-                style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
             if (_selectedVoucher != null) ...[
               const SizedBox(height: 4),
               Text(
                 'Voucher (${_selectedVoucher!.rewardTitle}): - ${_currencyFormat.format(_voucherDiscount)}',
-                style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
             const Divider(height: 24),
@@ -355,7 +361,9 @@ class _CartScreenState extends State<CartScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGold),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGold,
+            ),
             child: const Text('Confirm', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -389,14 +397,18 @@ class _CartScreenState extends State<CartScreen> {
       // 2. Kirim Email Konfirmasi (Kode lama Anda)
       if (order.userEmail != null && order.userEmail != 'No Email') {
         final guestName = order.userName ?? 'Valued Guest';
-        final htmlContent = EmailService.generateConfirmationTemplate(order, guestName);
+        final htmlContent = EmailService.generateConfirmationTemplate(
+          order,
+          guestName,
+        );
 
         EmailService.sendEmail(
           to: order.userEmail!,
           subject: 'Booking Received - ${order.orderNumber}',
           htmlContent: htmlContent,
         ).then((success) {
-          if (success) print('✅ [EMAIL] Confirmation email sent to ${order.userEmail}');
+          if (success)
+            print('✅ [EMAIL] Confirmation email sent to ${order.userEmail}');
         });
       }
 
@@ -406,10 +418,13 @@ class _CartScreenState extends State<CartScreen> {
         await NotificationService.createNotification(
           userId: order.userId,
           title: 'Booking Request Received! 🛒',
-          message: 'Your booking request (${order.orderNumber}) has been successfully received. Please complete the payment to confirm your booking.',
+          message:
+              'Your booking request (${order.orderNumber}) has been successfully received. Please complete the payment to confirm your booking.',
           type: 'booking', // ✅ PENTING: Tetap 'booking' agar ikonnya Struk & warnanya Biru
         );
-        print('✅ [NOTIF] In-app notification created for order ${order.orderNumber}');
+        print(
+          '✅ [NOTIF] In-app notification created for order ${order.orderNumber}',
+        );
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -494,6 +509,21 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. Ekstrak konten utama agar bisa dipakai di Mobile dan Desktop (DRY Principle)
+    final cartContent = _isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: AppColors.primaryGold),
+          )
+        : _cart == null || _cart!.items.isEmpty
+        ? _buildEmptyState()
+        : Column(
+            children: [
+              Expanded(child: _buildCartList()),
+              _buildCheckoutBar(),
+            ],
+          );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
@@ -508,16 +538,61 @@ class _CartScreenState extends State<CartScreen> {
         ),
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
-            )
-          : _cart == null || _cart!.items.isEmpty
-          ? _buildEmptyState()
-          : _buildCartList(),
-      bottomNavigationBar: _cart != null && _cart!.items.isNotEmpty
-          ? _buildCheckoutBar()
-          : null,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          // Struktur Column + Expanded + Checkout Bar berperilaku identik dengan body + bottomNavigationBar
+          if (!isDesktop) {
+            return cartContent;
+          }
+
+          // --- TABLET & DESKTOP: Centered Premium Card + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(
+                24.0,
+              ), // Jarak dari edge layar desktop
+              child: Center(
+                child: ConstrainedBox(
+                  // ✅ 900px adalah lebar ideal untuk cart (ruang cukup untuk detail item & ringkasan)
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    // ✅ ClipRRect memastikan sudut kartu (termasuk checkout bar) ikut membulat dengan rapi
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: cartContent, // Gunakan konten yang sama persis!
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 

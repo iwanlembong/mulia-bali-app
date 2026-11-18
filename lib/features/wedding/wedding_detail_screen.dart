@@ -124,12 +124,19 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
             ),
             child: const Column(
               children: [
-                Icon(Icons.rate_review_outlined, size: 40, color: AppColors.textGrey),
+                Icon(
+                  Icons.rate_review_outlined,
+                  size: 40,
+                  color: AppColors.textGrey,
+                ),
                 SizedBox(height: 12),
                 Text(
                   'No reviews yet. Be the first to share your wedding experience!',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    color: AppColors.textGrey,
+                  ),
                 ),
               ],
             ),
@@ -159,7 +166,9 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                     Row(
                       children: List.generate(5, (index) {
                         return Icon(
-                          index < _averageRating.round() ? Icons.star : Icons.star_border,
+                          index < _averageRating.round()
+                              ? Icons.star
+                              : Icons.star_border,
                           color: AppColors.primaryGold,
                           size: 16,
                         );
@@ -192,7 +201,12 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5)],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 5,
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,7 +218,10 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                         backgroundColor: AppColors.primaryGold.withOpacity(0.2),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'G',
-                          style: const TextStyle(color: AppColors.primaryGold, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: AppColors.primaryGold,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -212,14 +229,32 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(userName, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold)),
-                            Text(DateFormat('dd MMM yyyy').format(date), style: const TextStyle(fontFamily: 'Lato', fontSize: 11, color: AppColors.textGrey)),
+                            Text(
+                              userName,
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              DateFormat('dd MMM yyyy').format(date),
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 11,
+                                color: AppColors.textGrey,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       Row(
                         children: List.generate(5, (index) {
-                          return Icon(index < rating ? Icons.star : Icons.star_border, color: AppColors.primaryGold, size: 14);
+                          return Icon(
+                            index < rating ? Icons.star : Icons.star_border,
+                            color: AppColors.primaryGold,
+                            size: 14,
+                          );
                         }),
                       ),
                     ],
@@ -228,9 +263,18 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                     const SizedBox(height: 12),
                     const Divider(height: 1),
                     const SizedBox(height: 12),
-                    Text(comment, style: const TextStyle(fontFamily: 'Lato', fontSize: 13, color: AppColors.darkCharcoal, height: 1.5)),
+                    Text(
+                      comment,
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 13,
+                        color: AppColors.darkCharcoal,
+                        height: 1.5,
+                      ),
+                    ),
                   ],
-                  if (review['admin_reply'] != null && review['admin_reply'].toString().isNotEmpty) ...[
+                  if (review['admin_reply'] != null &&
+                      review['admin_reply'].toString().isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
@@ -238,20 +282,42 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.primaryGold.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.primaryGold.withOpacity(0.3)),
+                        border: Border.all(
+                          color: AppColors.primaryGold.withOpacity(0.3),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: const [
-                              Icon(Icons.verified_user, size: 16, color: AppColors.primaryGold),
+                              Icon(
+                                Icons.verified_user,
+                                size: 16,
+                                color: AppColors.primaryGold,
+                              ),
                               SizedBox(width: 6),
-                              Text('Management Response', style: TextStyle(fontFamily: 'Lato', fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal)),
+                              Text(
+                                'Management Response',
+                                style: TextStyle(
+                                  fontFamily: 'Lato',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkCharcoal,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Text(review['admin_reply'], style: const TextStyle(fontFamily: 'Lato', fontSize: 13, color: AppColors.darkCharcoal, height: 1.5)),
+                          Text(
+                            review['admin_reply'],
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 13,
+                              color: AppColors.darkCharcoal,
+                              height: 1.5,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -276,29 +342,52 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
           return Container(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
-              top: 24, left: 24, right: 24,
+              top: 24,
+              left: 24,
+              right: 24,
             ),
             decoration: const BoxDecoration(
               color: AppColors.offWhite,
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Center(
-                  child: Text('Wedding Inquiry Details', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 22, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    'Wedding Inquiry Details',
+                    style: TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 const Center(
                   child: Text(
                     'Please provide your event details so we can check availability.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontFamily: 'Lato', fontSize: 13, color: AppColors.textGrey),
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 13,
+                      color: AppColors.textGrey,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
-                const Text('Event Date', style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Event Date',
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: () async {
@@ -306,10 +395,16 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                       context: context,
                       initialDate: DateTime.now().add(const Duration(days: 30)),
                       firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                      lastDate: DateTime.now().add(
+                        const Duration(days: 365 * 2),
+                      ),
                       builder: (context, child) {
                         return Theme(
-                          data: ThemeData.light().copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGold)),
+                          data: ThemeData.light().copyWith(
+                            colorScheme: const ColorScheme.light(
+                              primary: AppColors.primaryGold,
+                            ),
+                          ),
                           child: child!,
                         );
                       },
@@ -319,37 +414,60 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                     }
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.primaryGold.withOpacity(0.3)),
+                      border: Border.all(
+                        color: AppColors.primaryGold.withOpacity(0.3),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          _selectedEventDate != null ? DateFormat('dd MMMM yyyy').format(_selectedEventDate!) : 'Select Event Date',
+                          _selectedEventDate != null
+                              ? DateFormat('dd MMMM yyyy')
+                                    .format(_selectedEventDate!)
+                              : 'Select Event Date',
                           style: TextStyle(
                             fontFamily: 'Lato',
                             fontSize: 14,
-                            color: _selectedEventDate != null ? AppColors.darkCharcoal : AppColors.textGrey,
+                            color: _selectedEventDate != null
+                                ? AppColors.darkCharcoal
+                                : AppColors.textGrey,
                           ),
                         ),
-                        const Icon(Icons.calendar_today, color: AppColors.primaryGold, size: 18),
+                        const Icon(
+                          Icons.calendar_today,
+                          color: AppColors.primaryGold,
+                          size: 18,
+                        ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text('Estimated Guest Count', style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Estimated Guest Count',
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.primaryGold.withOpacity(0.3)),
+                    border: Border.all(
+                      color: AppColors.primaryGold.withOpacity(0.3),
+                    ),
                   ),
                   child: TextField(
                     controller: _guestCountController,
@@ -357,7 +475,11 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                     decoration: const InputDecoration(
                       hintText: 'e.g. 200',
                       border: InputBorder.none,
-                      icon: Icon(Icons.people_outline, color: AppColors.primaryGold, size: 18),
+                      icon: Icon(
+                        Icons.people_outline,
+                        color: AppColors.primaryGold,
+                        size: 18,
+                      ),
                     ),
                   ),
                 ),
@@ -368,9 +490,13 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                     onPressed: _isBookingLoading
                         ? null
                         : () {
-                            if (_selectedEventDate == null || _guestCountController.text.trim().isEmpty) {
+                            if (_selectedEventDate == null ||
+                                _guestCountController.text.trim().isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please fill in all details'), backgroundColor: Colors.orange),
+                                const SnackBar(
+                                  content: Text('Please fill in all details'),
+                                  backgroundColor: Colors.orange,
+                                ),
                               );
                               return;
                             }
@@ -379,11 +505,27 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.darkCharcoal,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: _isBookingLoading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('CHECK AVAILABILITY & BOOK', style: TextStyle(fontFamily: 'Lato', fontWeight: FontWeight.bold, letterSpacing: 1)),
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'CHECK AVAILABILITY & BOOK',
+                            style: TextStyle(
+                              fontFamily: 'Lato',
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -400,16 +542,23 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
     if (_package == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Package data not loaded. Please try again.'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('Package data not loaded. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
       return;
     }
 
-    if (_selectedEventDate == null || _guestCountController.text.trim().isEmpty) {
+    if (_selectedEventDate == null ||
+        _guestCountController.text.trim().isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please fill in all required fields'), backgroundColor: Colors.orange),
+          const SnackBar(
+            content: Text('Please fill in all required fields'),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
       return;
@@ -429,7 +578,10 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
       }
 
       final guestCount = int.tryParse(_guestCountController.text.trim()) ?? 100;
-      final eventDateStr = _selectedEventDate!.toIso8601String().split('T').first;
+      final eventDateStr = _selectedEventDate!
+          .toIso8601String()
+          .split('T')
+          .first;
       final packagePrice = _package!.price ?? 0;
       final uniqueOrderNumber = 'ORD-${DateTime.now().millisecondsSinceEpoch}';
 
@@ -468,12 +620,13 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
       });
 
       if (mounted) {
-        final displayDate = DateFormat('dd MMMM yyyy').format(_selectedEventDate!);
+        final displayDate = DateFormat('dd MMMM yyyy')
+            .format(_selectedEventDate!);
         final displayGuests = guestCount.toString();
 
         Navigator.pop(context); // Tutup modal
         setState(() => _isBookingLoading = false);
-        
+
         // Reset form
         _guestCountController.clear();
         setState(() => _selectedEventDate = null);
@@ -482,12 +635,17 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
         showDialog(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Row(
               children: [
                 Icon(Icons.check_circle, color: Colors.green, size: 28),
                 SizedBox(width: 12),
-                Text('Inquiry Submitted!', style: TextStyle(fontFamily: 'Playfair Display')),
+                Text(
+                  'Inquiry Submitted!',
+                  style: TextStyle(fontFamily: 'Playfair Display'),
+                ),
               ],
             ),
             content: Column(
@@ -508,10 +666,22 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Your Inquiry Details:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      const Text(
+                        'Your Inquiry Details:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Text('📅 Event Date: $displayDate', style: const TextStyle(fontSize: 12)),
-                      Text('👥 Estimated Guests: $displayGuests', style: const TextStyle(fontSize: 12)),
+                      Text(
+                        '📅 Event Date: $displayDate',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        '👥 Estimated Guests: $displayGuests',
+                        style: const TextStyle(fontSize: 12),
+                      ),
                     ],
                   ),
                 ),
@@ -523,15 +693,23 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                   Navigator.pop(dialogContext);
                   context.go('/');
                 },
-                child: const Text('Back to Home', style: TextStyle(color: AppColors.darkCharcoal)),
+                child: const Text(
+                  'Back to Home',
+                  style: TextStyle(color: AppColors.darkCharcoal),
+                ),
               ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(dialogContext);
                   context.go('/my-bookings');
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGold),
-                child: const Text('View My Inquiry', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGold,
+                ),
+                child: const Text(
+                  'View My Inquiry',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -543,18 +721,23 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
         Navigator.pop(context);
         setState(() => _isBookingLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit inquiry: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed to submit inquiry: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
-    @override
+  @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: AppColors.offWhite,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryGold)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGold),
+        ),
       );
     }
 
@@ -576,23 +759,34 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
             background: Stack(
               fit: StackFit.expand,
               children: [
-                if (_package!.imageUrl != null && _package!.imageUrl!.isNotEmpty)
+                if (_package!.imageUrl != null &&
+                    _package!.imageUrl!.isNotEmpty)
                   Image.network(
                     _package!.imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(color: AppColors.darkCharcoal),
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: AppColors.darkCharcoal),
                   )
                 else
                   Container(
                     color: AppColors.darkCharcoal,
-                    child: const Center(child: Icon(Icons.favorite, size: 64, color: Colors.white24)),
+                    child: const Center(
+                      child: Icon(
+                        Icons.favorite,
+                        size: 64,
+                        color: Colors.white24,
+                      ),
+                    ),
                   ),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
                     ),
                   ),
                 ),
@@ -612,7 +806,12 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
               children: [
                 Text(
                   _package!.packageName,
-                  style: const TextStyle(fontFamily: 'Playfair Display', fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.darkCharcoal),
+                  style: const TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCharcoal,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 if (_package!.price != null)
@@ -625,15 +824,31 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.attach_money, size: 24, color: Colors.pink),
+                        const Icon(
+                          Icons.attach_money,
+                          size: 24,
+                          color: Colors.pink,
+                        ),
                         const SizedBox(width: 8),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Starting From', style: TextStyle(fontFamily: 'Lato', fontSize: 11, color: AppColors.textGrey)),
+                            const Text(
+                              'Starting From',
+                              style: TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 11,
+                                color: AppColors.textGrey,
+                              ),
+                            ),
                             Text(
                               _currencyFormat.format(_package!.price),
-                              style: const TextStyle(fontFamily: 'Lato', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.pink),
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.pink,
+                              ),
                             ),
                           ],
                         ),
@@ -643,15 +858,34 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                 const SizedBox(height: 24),
                 const Divider(),
                 const SizedBox(height: 24),
-                const Text('About This Package', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text(
+                  'About This Package',
+                  style: TextStyle(
+                    fontFamily: 'Playfair Display',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Text(
                   _package!.description ?? 'No description available.',
-                  style: const TextStyle(fontFamily: 'Lato', fontSize: 15, color: AppColors.textGrey, height: 1.6),
+                  style: const TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 15,
+                    color: AppColors.textGrey,
+                    height: 1.6,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 if (_package!.includes.isNotEmpty) ...[
-                  const Text('Package Includes', style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Package Includes',
+                    style: TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   ..._package!.includes.map(
                     (item) => Padding(
@@ -659,10 +893,21 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.check_circle, size: 18, color: Colors.pink),
+                          const Icon(
+                            Icons.check_circle,
+                            size: 18,
+                            color: Colors.pink,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Text(item, style: const TextStyle(fontFamily: 'Lato', fontSize: 14, color: AppColors.darkCharcoal)),
+                            child: Text(
+                              item,
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                color: AppColors.darkCharcoal,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -671,7 +916,9 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
                 ],
                 const SizedBox(height: 32),
                 _buildReviewsSection(),
-                const SizedBox(height: 40), // Disesuaikan agar ada ruang sebelum tombol di desktop
+                const SizedBox(
+                  height: 40,
+                ), // Disesuaikan agar ada ruang sebelum tombol di desktop
               ],
             ),
           ),
@@ -709,7 +956,9 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
             backgroundColor: Colors.pink.shade600,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         ),
       ),
@@ -743,7 +992,11 @@ class _WeddingDetailScreenState extends State<WeddingDetailScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFF7F5F0), Color(0xFFEDE7DA), Color(0xFFF7F5F0)],
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
               ),
             ),
             child: Padding(

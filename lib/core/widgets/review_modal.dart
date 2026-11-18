@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/constants/app_colors.dart';
 import '../../core/services/review_service.dart';
 
@@ -32,7 +33,10 @@ class _ReviewModalState extends State<ReviewModal> {
   Future<void> _submitReview() async {
     if (_commentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please write a comment'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Please write a comment'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -55,17 +59,22 @@ class _ReviewModalState extends State<ReviewModal> {
         // ✅ 2. UBAH PESAN DI SINI (Jadi Orange & Informatif)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Review submitted! It will appear after Admin approval.'),
+            content: Text(
+              'Review submitted! It will appear after Admin approval.',
+            ),
             backgroundColor: Colors.orange, // Warna orange menandakan "Pending"
             behavior: SnackBarBehavior.floating,
           ),
         );
 
         // 3. Panggil callback untuk refresh halaman di belakangnya
-        widget.onReviewSubmitted(); 
+        widget.onReviewSubmitted();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to submit review'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('Failed to submit review'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -73,75 +82,115 @@ class _ReviewModalState extends State<ReviewModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // ✅ 1. Cek apakah layar lebar (Desktop/Tablet)
+    final isDesktop = MediaQuery.of(context).size.width > 600;
+
+    // ✅ 2. Definisikan konten modal HANYA SATU KALI (DRY Principle)
+    final modalContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Center(
+          child: Text(
+            'Rate Your Experience',
+            style: TextStyle(
+              fontFamily: 'Playfair Display',
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // ⭐ Star Rating Selector
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(5, (index) {
+            return GestureDetector(
+              onTap: () => setState(() => _selectedRating = index + 1),
+              child: Icon(
+                index < _selectedRating ? Icons.star : Icons.star_border,
+                color: AppColors.primaryGold,
+                size: 40,
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 24),
+
+        const Text(
+          'Your Review',
+          style: TextStyle(
+            fontFamily: 'Lato',
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 📝 Comment Input
+        TextField(
+          controller: _commentController,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: 'Share your experience with other guests...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            filled: true,
+            fillColor: AppColors.offWhite,
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // 🚀 Submit Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _isSubmitting ? null : _submitReview,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.darkCharcoal,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isSubmitting
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'SUBMIT REVIEW',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+
+    // ✅ 3. Bungkus dengan Padding (untuk keyboard & jarak tepi)
+    final paddedContent = Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 24, right: 24, top: 24,
+        left: 24,
+        right: 24,
+        top: 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Center(
-            child: Text(
-              'Rate Your Experience',
-              style: TextStyle(fontFamily: 'Playfair Display', fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 24),
+      child: modalContent,
+    );
 
-          // ⭐ Star Rating Selector
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              return GestureDetector(
-                onTap: () => setState(() => _selectedRating = index + 1),
-                child: Icon(
-                  index < _selectedRating ? Icons.star : Icons.star_border,
-                  color: AppColors.primaryGold,
-                  size: 40,
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 24),
+    // ✅ 4. Wrapper Responsif
+    if (!isDesktop) {
+      // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+      return paddedContent;
+    }
 
-          const Text(
-            'Your Review',
-            style: TextStyle(fontFamily: 'Lato', fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-
-          // 📝 Comment Input
-          TextField(
-            controller: _commentController,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: 'Share your experience with other guests...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              filled: true,
-              fillColor: AppColors.offWhite,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // 🚀 Submit Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isSubmitting ? null : _submitReview,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.darkCharcoal,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: _isSubmitting
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('SUBMIT REVIEW', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
+    // --- DESKTOP: Centered Floating Modal ---
+    return Center(
+      child: ConstrainedBox(
+        // ✅ 600px adalah lebar ideal untuk form review agar tidak terlalu panjang
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: paddedContent,
       ),
     );
   }

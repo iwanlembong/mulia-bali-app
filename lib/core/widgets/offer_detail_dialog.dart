@@ -13,232 +13,245 @@ class OfferDetailDialog {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          contentPadding: EdgeInsets.zero,
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 1. Gambar Promo
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: Image.network(
-                    offer.imageUrl,
-                    height: 180,
-                    width: MediaQuery.of(context).size.width,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+        // ✅ PERBAIKAN 1: Batasi lebar maksimal dialog agar tidak melebar di desktop
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            contentPadding: EdgeInsets.zero,
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 1. Gambar Promo
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    child: Image.network(
+                      offer.imageUrl,
                       height: 180,
-                      width: MediaQuery.of(context).size.width,
-                      color: AppColors.offWhite,
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: AppColors.textGrey,
+                      // ✅ PERBAIKAN 2: Gunakan double.infinity, JANGAN MediaQuery.width
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 180,
+                        width: double
+                            .infinity, // ✅ PERBAIKAN 3: Juga di errorBuilder
+                        color: AppColors.offWhite,
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          color: AppColors.textGrey,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 2. Judul & Badge Diskon
-                      Text(
-                        offer.title,
-                        style: const TextStyle(
-                          fontFamily: 'Playfair Display',
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkCharcoal,
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 2. Judul & Badge Diskon
+                        Text(
+                          offer.title,
+                          style: const TextStyle(
+                            fontFamily: 'Playfair Display',
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkCharcoal,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (offer.discountPercentage != null &&
-                          offer.discountPercentage! > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
+                        const SizedBox(height: 8),
+                        if (offer.discountPercentage != null &&
+                            offer.discountPercentage! > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${offer.discountPercentage}% OFF',
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${offer.discountPercentage}% OFF',
+                        const SizedBox(height: 12),
+
+                        // 3. Deskripsi
+                        if (offer.description != null &&
+                            offer.description!.isNotEmpty)
+                          Text(
+                            offer.description!,
                             style: const TextStyle(
                               fontFamily: 'Lato',
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red,
+                              fontSize: 14,
+                              color: AppColors.textGrey,
+                              height: 1.5,
                             ),
                           ),
-                        ),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 16),
 
-                      // 3. Deskripsi
-                      if (offer.description != null &&
-                          offer.description!.isNotEmpty)
-                        Text(
-                          offer.description!,
-                          style: const TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 14,
-                            color: AppColors.textGrey,
-                            height: 1.5,
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-
-                      // 4. Kode Promo & Tombol Copy
-                      if (offer.promoCode != null &&
-                          offer.promoCode!.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryGold.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.primaryGold.withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Your Promo Code',
-                                style: TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textGrey,
-                                  letterSpacing: 1,
-                                ),
+                        // 4. Kode Promo & Tombol Copy
+                        if (offer.promoCode != null &&
+                            offer.promoCode!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryGold.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.primaryGold.withOpacity(0.3),
+                                width: 1.5,
                               ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      offer.promoCode!,
-                                      style: const TextStyle(
-                                        fontFamily: 'Lato',
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.darkCharcoal,
-                                        letterSpacing: 2,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Your Promo Code',
+                                  style: TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textGrey,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        offer.promoCode!,
+                                        style: const TextStyle(
+                                          fontFamily: 'Lato',
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.darkCharcoal,
+                                          letterSpacing: 2,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  InkWell(
-                                    onTap: () async {
-                                      await Clipboard.setData(
-                                        ClipboardData(text: offer.promoCode!),
-                                      );
-                                      if (dialogContext.mounted) {
-                                        ScaffoldMessenger.of(
-                                          dialogContext,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Promo code copied!'),
-                                            backgroundColor: Colors.green,
-                                            duration: Duration(seconds: 2),
-                                          ),
+                                    InkWell(
+                                      onTap: () async {
+                                        await Clipboard.setData(
+                                          ClipboardData(text: offer.promoCode!),
                                         );
-                                      }
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.darkCharcoal,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.copy,
-                                        color: Colors.white,
-                                        size: 20,
+                                        if (dialogContext.mounted) {
+                                          ScaffoldMessenger.of(
+                                            dialogContext,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Promo code copied!',
+                                              ),
+                                              backgroundColor: Colors.green,
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.darkCharcoal,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.copy,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
                                       ),
                                     ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 8),
+
+                        // 5. Periode Berlaku
+                        if (offer.validFrom != null && offer.validUntil != null)
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: AppColors.primaryGold,
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'Valid: ${dateFormat.format(offer.validFrom!)} - ${dateFormat.format(offer.validUntil!)}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.darkCharcoal,
                                   ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
-
-                      // 5. Periode Berlaku
-                      if (offer.validFrom != null && offer.validUntil != null)
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today,
-                              size: 16,
-                              color: AppColors.primaryGold,
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                'Valid: ${dateFormat.format(offer.validFrom!)} - ${dateFormat.format(offer.validUntil!)}',
-                                style: const TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.darkCharcoal,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    color: AppColors.textGrey,
                   ),
                 ),
-              ],
-            ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  _handleBookOffer(dialogContext, offer);
+                },
+                icon: const Icon(Icons.arrow_forward, size: 16),
+                label: const Text(
+                  'BROWSE & BOOK',
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.darkCharcoal,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text(
-                'Close',
-                style: TextStyle(fontFamily: 'Lato', color: AppColors.textGrey),
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _handleBookOffer(dialogContext, offer);
-              },
-              icon: const Icon(Icons.arrow_forward, size: 16),
-              label: const Text(
-                'BROWSE & BOOK',
-                style: TextStyle(
-                  fontFamily: 'Lato',
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.darkCharcoal,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
         );
       },
     );
@@ -267,13 +280,13 @@ class OfferDetailDialog {
         }
         break;
       case 'spa':
-        context.push('/spa'); // Sesuaikan dengan route services/spa Anda
+        context.push('/spa');
         break;
       case 'dining':
-        context.push('/dining'); // Sesuaikan dengan route services/spa Anda
+        context.push('/dining');
         break;
       case 'wedding':
-        context.push('/wedding'); // Sesuaikan dengan route services/spa Anda
+        context.push('/wedding');
         break;
       default:
         context.push('/properties');

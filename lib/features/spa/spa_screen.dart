@@ -45,7 +45,7 @@ class _SpaScreenState extends State<SpaScreen> {
     }
   }
 
-    @override
+  @override
   Widget build(BuildContext context) {
     // ✅ 1. Ekstrak konten body ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
     final bodyContent = RefreshIndicator(
@@ -56,45 +56,45 @@ class _SpaScreenState extends State<SpaScreen> {
               child: CircularProgressIndicator(color: AppColors.primaryGold),
             )
           : _services.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.spa_outlined,
-                        size: 64,
-                        color: AppColors.textGrey,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No spa services available at the moment.',
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 16,
-                          color: AppColors.textGrey,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _fetchServices,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryGold,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.spa_outlined,
+                    size: 64,
+                    color: AppColors.textGrey,
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _services.length,
-                  itemBuilder: (context, index) {
-                    final service = _services[index];
-                    return _buildServiceCard(service);
-                  },
-                ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No spa services available at the moment.',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 16,
+                      color: AppColors.textGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _fetchServices,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGold,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _services.length,
+              itemBuilder: (context, index) {
+                final service = _services[index];
+                return _buildServiceCard(service);
+              },
+            ),
     );
 
     // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
@@ -127,11 +127,17 @@ class _SpaScreenState extends State<SpaScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFF7F5F0), Color(0xFFEDE7DA), Color(0xFFF7F5F0)],
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
+                ],
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24.0), // Beri ruang napas di atas/bawah
+              padding: const EdgeInsets.symmetric(
+                vertical: 24.0,
+              ), // Beri ruang napas di atas/bawah
               child: Center(
                 child: ConstrainedBox(
                   // ✅ 800px adalah lebar ideal untuk kartu layanan agar tidak terlalu lebar

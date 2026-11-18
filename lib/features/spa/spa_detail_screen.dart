@@ -40,6 +40,9 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
   List<Map<String, dynamic>> _reviews = [];
   bool _isLoadingReviews = true;
 
+  // ✅ Getter responsif: bisa dipakai di build() maupun _buildReviewsSection()
+  bool get _isDesktop => MediaQuery.sizeOf(context).width > 600;
+
   @override
   void initState() {
     super.initState();
@@ -352,7 +355,16 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
       );
     }
 
-    // ✅ 1. Ekstrak CustomScrollView (tanpa bottomNavigationBar) ke variabel
+    // ✅ 1. VARIABEL FONT RESPONSIF (Mobile = nilai lama, Desktop = lebih halus)
+    final isDesktop = _isDesktop;
+    final titleSize = isDesktop ? 24.0 : 28.0;
+    final sectionSize = isDesktop ? 18.0 : 20.0;
+    final bodySize = isDesktop ? 14.0 : 15.0;
+    final priceSize = isDesktop ? 16.0 : 18.0;
+    final durationSize = isDesktop ? 15.0 : 16.0;
+    final btnLabelSize = isDesktop ? 13.0 : 14.0;
+
+    // ✅ 2. Ekstrak CustomScrollView (tanpa bottomNavigationBar) ke variabel
     final scrollView = CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -437,13 +449,31 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                       color: const Color(0xFF8B7355).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
+                    child: const Text(
+                      '', // placeholder, diisi di bawah via key
+                      style: TextStyle(),
+                    ),
+                  ),
+
+                // ✅ Badge kategori (tetap kecil, responsif ringan)
+                if (_service!.category != null &&
+                    _service!.category!.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B7355).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     child: Text(
                       _service!.category!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Lato',
-                        fontSize: 12,
+                        fontSize: isDesktop ? 11.0 : 12.0,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF8B7355),
+                        color: const Color(0xFF8B7355),
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -453,9 +483,9 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
 
                 Text(
                   _service!.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Playfair Display',
-                    fontSize: 28,
+                    fontSize: titleSize,
                     fontWeight: FontWeight.bold,
                     color: AppColors.darkCharcoal,
                   ),
@@ -497,9 +527,9 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                                 const SizedBox(width: 6),
                                 Text(
                                   '${_service!.durationMinutes ?? 0} minutes',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: 'Lato',
-                                    fontSize: 16,
+                                    fontSize: durationSize,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -529,11 +559,11 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                             const SizedBox(height: 4),
                             Text(
                               _currencyFormat.format(_service!.price),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Lato',
-                                fontSize: 18,
+                                fontSize: priceSize,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF8B7355),
+                                color: const Color(0xFF8B7355),
                               ),
                             ),
                           ],
@@ -547,20 +577,20 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                 const Divider(),
                 const SizedBox(height: 24),
 
-                const Text(
+                Text(
                   'About This Treatment',
                   style: TextStyle(
                     fontFamily: 'Playfair Display',
-                    fontSize: 20,
+                    fontSize: sectionSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   _service!.description ?? 'No description available.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Lato',
-                    fontSize: 15,
+                    fontSize: bodySize,
                     color: AppColors.textGrey,
                     height: 1.6,
                   ),
@@ -568,11 +598,11 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
 
                 const SizedBox(height: 24),
 
-                const Text(
+                Text(
                   'What to Expect',
                   style: TextStyle(
                     fontFamily: 'Playfair Display',
-                    fontSize: 20,
+                    fontSize: sectionSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -596,7 +626,7 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
       ],
     );
 
-    // ✅ 2. Ekstrak Checkout Bar (sebelumnya bottomNavigationBar) ke variabel
+    // ✅ 3. Ekstrak Checkout Bar (DIPERBAIKI: FittedBox + font responsif)
     final checkoutBar = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -613,19 +643,30 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
         child: ElevatedButton.icon(
           onPressed: _handleAddToCart,
           icon: const Icon(Icons.shopping_bag, size: 18),
-          label: Text(
-            'ADD TO CART - ${_currencyFormat.format(_service!.price)}',
-            style: const TextStyle(
-              fontFamily: 'Lato',
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
+          label: FittedBox(
+            // ✅ scaleDown: teks otomatis mengecil HANYA jika tidak muat → anti-clip
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'ADD TO CART - ${_currencyFormat.format(_service!.price)}',
+              style: TextStyle(
+                fontFamily: 'Lato',
+                fontSize: btnLabelSize,
+                fontWeight: FontWeight.bold,
+                letterSpacing: isDesktop
+                    ? 0.5
+                    : 1.0, // ✅ spasi dikurangi di desktop
+              ),
             ),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF8B7355),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: EdgeInsets.symmetric(
+              vertical: 16,
+              horizontal: isDesktop
+                  ? 12
+                  : 16, // ✅ padding horizontal dikurangi di desktop
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -634,9 +675,7 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
       ),
     );
 
-    // ✅ 3. Gabungkan menjadi Column (Expanded + Checkout Bar)
-    //    Di mobile: berperilaku IDENTIK dengan Scaffold + bottomNavigationBar
-    //    Di desktop: checkout bar ikut ter-center dalam kartu premium
+    // ✅ 4. Gabungkan menjadi Column (Expanded + Checkout Bar)
     final mainContent = Column(
       children: [
         Expanded(child: scrollView),
@@ -644,19 +683,15 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
       ],
     );
 
-    // ✅ 4. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
+    // ✅ 5. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
     return Scaffold(
       backgroundColor: AppColors.offWhite,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth > 600;
-
-          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
           if (!isDesktop) {
             return mainContent;
           }
 
-          // --- TABLET & DESKTOP: Centered Premium Card + Gradient ---
           return Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -673,7 +708,6 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
               padding: const EdgeInsets.all(24.0),
               child: Center(
                 child: ConstrainedBox(
-                  // ✅ 800px = lebar ideal untuk detail layanan + checkout bar
                   constraints: const BoxConstraints(maxWidth: 800),
                   child: Container(
                     decoration: BoxDecoration(
@@ -687,7 +721,6 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
                         ),
                       ],
                     ),
-                    // ✅ ClipRRect memastikan SliverAppBar & checkout bar ikut membulat rapi
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: mainContent,
@@ -720,9 +753,9 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Lato',
-                fontSize: 14,
+                fontSize: _isDesktop ? 13.0 : 14.0, // ✅ responsif
                 color: AppColors.darkCharcoal,
                 height: 1.4,
               ),
@@ -745,11 +778,11 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Guest Reviews',
               style: TextStyle(
                 fontFamily: 'Playfair Display',
-                fontSize: 20,
+                fontSize: _isDesktop ? 18.0 : 20.0, // ✅ responsif
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -815,9 +848,9 @@ class _SpaDetailScreenState extends State<SpaDetailScreen> {
               children: [
                 Text(
                   _averageRating.toStringAsFixed(1),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Playfair Display',
-                    fontSize: 32,
+                    fontSize: _isDesktop ? 28.0 : 32.0, // ✅ responsif
                     fontWeight: FontWeight.bold,
                     color: AppColors.darkCharcoal,
                   ),

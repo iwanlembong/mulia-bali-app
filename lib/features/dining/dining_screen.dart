@@ -53,60 +53,94 @@ class DiningScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.offWhite,
-      body: CustomScrollView(
-        slivers: [
-          // Header Dining
-          SliverAppBar(
-            expandedHeight: 250,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text(
-                'Mulia Dining',
-                style: TextStyle(
-                  fontFamily: 'Playfair Display',
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
-                ),
+    // ✅ 1. Ekstrak CustomScrollView ke variabel agar TIDAK ADA duplikasi kode (DRY Principle)
+    final scrollView = CustomScrollView(
+      slivers: [
+        // Header Dining
+        SliverAppBar(
+          expandedHeight: 250,
+          pinned: true,
+          flexibleSpace: FlexibleSpaceBar(
+            title: const Text(
+              'Mulia Dining',
+              style: TextStyle(
+                fontFamily: 'Playfair Display',
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
               ),
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=1200&q=80',
-                    fit: BoxFit.cover,
-                  ),
-                  // Gradient Overlay yang dibungkus Container
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black54],
-                      ),
+            ),
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=1200&q=80',
+                  fit: BoxFit.cover,
+                ),
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black54],
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // List Restoran
+        SliverPadding(
+          padding: const EdgeInsets.all(16.0),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final restaurant = muliaRestaurants[index];
+              return _buildRestaurantCard(context, restaurant)
+                  .animate()
+                  .fadeIn(delay: (100 * index).ms)
+                  .slideY(begin: 0.2, end: 0);
+            }, childCount: muliaRestaurants.length),
+          ),
+        ),
+      ],
+    );
+
+    // ✅ 2. Wrapper Responsif (Mobile tidak berubah, Desktop/Tablet upgrade)
+    return Scaffold(
+      backgroundColor: AppColors.offWhite,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 600;
+
+          // --- MOBILE: Tampilan lama TIDAK DIUBAH (PWA 100% Aman) ---
+          if (!isDesktop) {
+            return scrollView; // Kembalikan CustomScrollView apa adanya
+          }
+
+          // --- TABLET & DESKTOP: Centered Constrained Layout + Gradient ---
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F5F0),
+                  Color(0xFFEDE7DA),
+                  Color(0xFFF7F5F0),
                 ],
               ),
             ),
-          ),
-
-          // List Restoran
-          SliverPadding(
-            padding: const EdgeInsets.all(16.0),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final restaurant = muliaRestaurants[index];
-                return _buildRestaurantCard(context, restaurant)
-                    .animate()
-                    .fadeIn(delay: (100 * index).ms)
-                    .slideY(begin: 0.2, end: 0);
-              }, childCount: muliaRestaurants.length),
+            child: Center(
+              child: ConstrainedBox(
+                // ✅ 800px adalah lebar ideal untuk daftar kartu restoran agar tidak terlalu lebar
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: scrollView, // Gunakan CustomScrollView yang sama persis!
+              ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
